@@ -1,4 +1,4 @@
-# FBLC Cross-Platform App by Abby and Hanyang
+# FBLC Local Business Cross-Platform App by Abby and Hanyang
 
 ## Overview
 - Frontend: Vue 3 + Vite + Capacitor
