@@ -1,0 +1,6 @@
+{
+  "appId": "com.example.fblc",
+  "appName": "FBLC",
+  "webDir": "dist",
+  "bundledWebRuntime": false
+}
