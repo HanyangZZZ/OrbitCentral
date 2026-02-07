@@ -12,21 +12,29 @@ From the workspace root:
 - `cd frontend`
 - `npm install`
 
-2) Run the dev server
+2) Configure environment
+- Copy `.env.example` to `.env`
+- Default `VITE_API_BASE_URL=/api` (uses Vite proxy)
+
+3) Run the dev server
 - `npm run dev`
 
-The frontend uses a Vite dev proxy for `/api` by default. Override with `VITE_API_BASE_URL` in `.env` if needed.
+The frontend uses a Vite dev proxy for `/api` by default. Override `VITE_API_BASE_URL` in `.env` if needed.
 
 ## Backend Setup
 From the workspace root:
 
-1) Install dependencies
-- `cd backend`
-- `/Users/hanyangzhuo/Documents/FBLC/.venv/bin/python -m pip install -r requirements.txt`
+1) Create and activate a virtual environment (macOS/Linux)
+- `python3 -m venv .venv`
+- `source .venv/bin/activate`
 
-2) Run the server
-- `/Users/hanyangzhuo/Documents/FBLC/.venv/bin/python manage.py migrate`
-- `/Users/hanyangzhuo/Documents/FBLC/.venv/bin/python manage.py runserver`
+2) Install dependencies
+- `cd backend`
+- `python -m pip install -r requirements.txt`
+
+3) Run the server
+- `python manage.py migrate`
+- `python manage.py runserver`
 
 The API endpoint is available at `http://localhost:8000/api/items/`.
 
@@ -36,13 +44,13 @@ The API endpoint is available at `http://localhost:8000/api/items/`.
 3) The new item should appear immediately after refresh.
 
 ### Web portal (Django admin)
-1) Run migrations (already applied).
+1) Run migrations.
 2) Create a superuser if needed:
-	- `/Users/hanyangzhuo/Documents/FBLC/.venv/bin/python manage.py createsuperuser`
+  - `python manage.py createsuperuser`
 3) Start the server and open `http://localhost:8000/admin`.
 
 ### Backend tests
-- `/Users/hanyangzhuo/Documents/FBLC/.venv/bin/python manage.py test`
+- `python manage.py test`
 
 ### Frontend tests (Capacitor checks)
 From `frontend/`:
