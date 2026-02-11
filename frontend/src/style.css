@@ -1,7 +1,5 @@
 :root {
   font-family: 'Inter', system-ui, sans-serif;
-  color: #0f172a;
-  background: #f8fafc;
 }
 
 * {
@@ -21,14 +19,7 @@ body {
   box-shadow: 0 20px 50px rgba(15, 23, 42, 0.1);
 }
 
-header h1 {
-  margin-bottom: 8px;
-}
 
-header p {
-  margin-top: 0;
-  color: #475569;
-}
 
 .controls {
   display: flex;
@@ -45,23 +36,7 @@ header p {
   font-size: 14px;
 }
 
-select,
-button {
-  border-radius: 10px;
-  border: 1px solid #e2e8f0;
-  padding: 10px 12px;
-  font-size: 14px;
-}
 
-button {
-  background: #0f172a;
-  color: #ffffff;
-  cursor: pointer;
-}
-
-button.refresh {
-  background: #1d4ed8;
-}
 
 .form {
   display: grid;
