@@ -1,72 +1,190 @@
-# FBLC Local Business Cross-Platform App by Abby and Hanyang
+# FBLC — Local Business Cross-Platform App
 
-## Overview
-- Frontend: Vue 3 + Vite + Capacitor
-- Backend: Django (API only)
-- Communication: Axios via REST API
+> By Abby and Hanyang
 
-## Frontend Setup
-From the workspace root:
+## Tech Stack
 
-1) Install dependencies
-- `cd frontend`
-- `npm install`
+| Layer     | Technology                                  |
+| --------- | ------------------------------------------- |
+| Frontend  | Vue 3 + Vite + Vue Router                   |
+| Backend   | Django 5 + Django REST Framework             |
+| Database  | MySQL 8.0 (Docker)                           |
+| Mobile    | Capacitor 6 (iOS)                            |
+| API Style | RESTful, paginated, filterable               |
 
-2) Configure environment
-- Copy `.env.example` to `.env`
-- Default `VITE_API_BASE_URL=/api` (uses Vite proxy)
+## Project Structure
 
-3) Run the dev server
-- `npm run dev`
+```
+FBLC/
+├── backend/
+│   ├── .env                          # Environment variables (git-ignored)
+│   ├── manage.py                     # Django management (uses development settings)
+│   ├── requirements.txt              # Python dependencies
+│   ├── api/
+│   │   ├── models/                   # One file per domain
+│   │   │   ├── user.py               # User, UserProfile
+│   │   │   ├── business.py           # Category, Business
+│   │   │   ├── review.py             # Review
+│   │   │   ├── bookmark.py           # Bookmark
+│   │   │   ├── reward.py             # Reward, UserCoupon
+│   │   │   └── automation.py         # AutomationLog
+│   │   ├── serializers.py            # DRF serializers (validation, JSON ↔ model)
+│   │   ├── viewsets.py               # DRF ModelViewSets (full CRUD)
+│   │   ├── urls.py                   # DRF Router → auto-generates all routes
+│   │   ├── pagination.py             # Paginated responses (50 per page)
+│   │   ├── exceptions.py             # Structured error logging
+│   │   └── admin.py                  # Django admin registrations
+│   └── server/
+│       ├── settings/
+│       │   ├── base.py               # Shared config (DRF, logging, DB)
+│       │   ├── development.py        # DEBUG=True, loose CORS, no throttle
+│       │   └── production.py         # DEBUG=False, strict CORS, security headers
+│       ├── urls.py                   # Root URL config (admin + api)
+│       ├── wsgi.py                   # Production WSGI entry point
+│       └── asgi.py                   # Production ASGI entry point
+├── frontend/
+│   ├── src/
+│   │   ├── api/client.js             # Axios client — all API functions
+│   │   ├── pages/HomePage.vue        # Data portal UI
+│   │   ├── router.js                 # Vue Router config
+│   │   ├── App.vue                   # Shell layout + nav
+│   │   └── main.js                   # App entry point
+│   ├── capacitor.config.json         # Capacitor config for iOS builds
+│   ├── vite.config.js                # Vite + proxy config
+│   └── package.json                  # Node dependencies
+└── .gitignore
+```
 
-The frontend uses a Vite dev proxy for `/api` by default. Override `VITE_API_BASE_URL` in `.env` if needed.
+## Quick Start
 
-## Backend Setup
-From the workspace root:
+### 1. Backend
 
-1) Create and activate a virtual environment (macOS/Linux)
-- `python3 -m venv .venv`
-- `source .venv/bin/activate`
+```bash
+# Create and activate venv
+python3 -m venv .venv
+source .venv/bin/activate
 
-2) Install dependencies
-- `cd backend`
-- `python -m pip install -r requirements.txt`
+# Install dependencies
+cd backend
+pip install -r requirements.txt
 
-3) Run the server
-- `python manage.py migrate`
-- `python manage.py runserver`
+# Start MySQL
+docker run -d --name fblc-mysql \
+  -p 3306:3306 \
+  -e MYSQL_DATABASE=fblc \
+  -e MYSQL_USER=fblc \
+  -e MYSQL_PASSWORD=fblc_password \
+  -e MYSQL_ROOT_PASSWORD=root_password \
+  mysql:8.0
 
-The API endpoint is available at `http://localhost:8000/api/items/`.
+# Run migrations
+python manage.py migrate
 
-### Verify frontend ↔ backend connection
-1) Start the backend and frontend servers.
-2) Use the "Add item" form in the UI.
-3) The new item should appear immediately after refresh.
+# Start dev server
+python manage.py runserver 0.0.0.0:8001
+```
 
-### Web portal (Django admin)
-1) Run migrations.
-2) Create a superuser if needed:
-  - `python manage.py createsuperuser`
-3) Start the server and open `http://localhost:8000/admin`.
+The API is at `http://localhost:8001/api/`.
+The browsable API (interactive docs) is at `http://localhost:8001/api/` in a browser.
 
-### Backend tests
-- `python manage.py test`
+### 2. Frontend
 
-### Frontend tests (Capacitor checks)
-From `frontend/`:
-- `npm test`
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-What it covers:
-- Validates `capacitor.config.json` exists and contains required fields for cross-platform builds.
-- Backend API tests include GET/POST and validation errors.
+The Vite dev server proxies `/api` → `http://localhost:8001`.
 
-## Capacitor
-After building the frontend:
-- `npm run build`
-- `npm run cap:init`
-- `npm run cap:add:ios` or `npm run cap:add:android`
-- `npm run cap:sync`
+### 3. Adminer (MySQL web GUI)
 
-## Notes
-- CORS is enabled for all origins in development.
-- Replace the example data in the backend with your real data source.
+```bash
+docker run -d --name fblc-adminer -p 8090:8080 adminer
+```
+
+Open `http://localhost:8090`:
+- System: **MySQL**
+- Server: **host.docker.internal** (or `127.0.0.1` on Linux)
+- Database: `fblc`
+- Username: `fblc`
+- Password: `fblc_password`
+
+## API Overview
+
+All endpoints support **GET, POST, PUT, PATCH, DELETE**. List responses are paginated.
+
+| Resource         | Endpoint                    | Filter fields                                | Search fields                      |
+| ---------------- | --------------------------- | -------------------------------------------- | ---------------------------------- |
+| Users            | `/api/users/`               | `role`, `is_verified_human`                  | `email`                            |
+| Profiles         | `/api/profiles/`            | `high_contrast`, `keyboard_only_nav`         | `display_name`, `user__email`      |
+| Categories       | `/api/categories/`          | —                                            | `name`, `slug`                     |
+| Businesses       | `/api/businesses/`          | `category`, `owner`, `onboarding_status`     | `name`, `contact_email`, `google_place_id` |
+| Reviews          | `/api/reviews/`             | `business`, `user`, `rating`, `is_visible`   | `content`                          |
+| Bookmarks        | `/api/bookmarks/`           | `user`, `business`                           | —                                  |
+| Rewards          | `/api/rewards/`             | `provider_business`, `trigger_business`, `reward_type` | `title`                  |
+| Coupons          | `/api/coupons/`             | `user`, `reward`, `status`                   | —                                  |
+| Automation Logs  | `/api/automation-logs/`     | `business`, `action_type`, `status`          | —                                  |
+
+### Pagination
+
+```
+GET /api/users/?page=2&page_size=10
+```
+
+Response:
+```json
+{
+  "count": 42,
+  "next": "http://localhost:8001/api/users/?page=3&page_size=10",
+  "previous": "http://localhost:8001/api/users/?page=1&page_size=10",
+  "results": [ ... ]
+}
+```
+
+### Filtering, Search & Ordering
+
+```
+GET /api/businesses/?category=1&onboarding_status=active
+GET /api/businesses/?search=cafe
+GET /api/businesses/?ordering=-avg_rating
+```
+
+## Environment Variables
+
+Defined in `backend/.env` (git-ignored):
+
+| Variable             | Default            | Description              |
+| -------------------- | ------------------ | ------------------------ |
+| `DJANGO_SECRET_KEY`  | (insecure default) | Change in production!    |
+| `DJANGO_DEBUG`       | `true`             | Set `false` in prod      |
+| `MYSQL_DATABASE`     | `fblc`             | MySQL database name      |
+| `MYSQL_USER`         | `fblc`             | MySQL user               |
+| `MYSQL_PASSWORD`     | `fblc_password`    | MySQL password           |
+| `MYSQL_HOST`         | `127.0.0.1`        | MySQL host               |
+| `MYSQL_PORT`         | `3306`             | MySQL port               |
+
+## Settings
+
+| File               | Used when                          |
+| ------------------ | ---------------------------------- |
+| `development.py`   | `manage.py runserver` (default)    |
+| `production.py`    | WSGI/ASGI (gunicorn, uvicorn)      |
+
+Override with: `DJANGO_SETTINGS_MODULE=server.settings.production`
+
+## Capacitor (iOS)
+
+```bash
+cd frontend
+npm run build
+npx cap sync ios
+npx cap open ios
+```
+
+## Django Admin
+
+```bash
+python manage.py createsuperuser
+# Then open http://localhost:8001/admin/
+```
