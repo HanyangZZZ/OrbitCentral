@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Favorites</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: white;
+    font-family: 'SF Pro', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
+  }
+
+  .fav-page {
+    width: 100%;
+    position: relative;
+    background: white;
+    overflow: hidden;
+    padding: 0 49px 60px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* ── Header ── */
+  .fav-title {
+    font-size: 36px;
+    font-weight: 510;
+    line-height: 16px;
+    color: black;
+    margin-top: 40px;
+    margin-bottom: 0;
+    width: 100%;
+    text-align: center;
+  }
+
+  /* ── AI Group Cards Row ── */
+  .ai-cards-row {
+    width: 100%;
+    display: flex;
+    gap: 27px;
+    margin-top: 32px;
+    justify-content: center;
+  }
+
+  .ai-card {
+    position: relative;
+    flex: 1;
+    max-width: 380px;
+    min-width: 200px;
+    height: 158px;
+  }
+
+  /* bottom layer – dark blue */
+  .ai-card-layer1 {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 128px;
+    background: #4A70A9;
+    border-radius: 9px;
+  }
+
+  /* middle layer – lighter blue */
+  .ai-card-layer2 {
+    position: absolute;
+    top: 14px;
+    left: 0;
+    width: 100%;
+    height: 128px;
+    background: #8FABD4;
+    border-radius: 9px;
+  }
+
+  /* top layer – white card with shadow */
+  .ai-card-layer3 {
+    position: absolute;
+    top: 30px;
+    left: 0;
+    width: 100%;
+    height: 128px;
+    background: white;
+    box-shadow: 0px 4px 4px rgba(0, 0, 0, 0.25);
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 12px 20px;
+  }
+
+  .ai-card-label {
+    text-align: center;
+    color: black;
+    font-size: 24px;
+    font-weight: 510;
+    line-height: 26px;
+    width: 176px;
+  }
+
+  /* ── Divider ── */
+  .fav-divider {
+    width: 100%;
+    height: 0;
+    border: none;
+    outline: 2px #EFECE3 solid;
+    outline-offset: -1px;
+    margin-top: 48px;
+    margin-bottom: 32px;
+  }
+
+  /* ── Business Cards Row ── */
+  .biz-cards-row {
+    width: 100%;
+    display: flex;
+    gap: 40px;
+    align-items: flex-end;
+    justify-content: center;
+  }
+
+  .biz-card {
+    position: relative;
+    flex: 1;
+    max-width: 380px;
+    min-width: 200px;
+  }
+
+  /* ── Featured card (gold glow) ── */
+  .biz-card-featured {
+    width: auto;
+  }
+
+  .biz-card-glow {
+    position: relative;
+    width: 100%;
+    border-radius: 9px;
+    padding-top: 28px;
+  }
+
+  /* Gold background glow (Figma: blur 3.5px) */
+  .biz-card-glow::before {
+    content: '';
+    position: absolute;
+    top: -4px;
+    left: -4px;
+    right: -4px;
+    bottom: -4px;
+    background: #FFCA84;
+    border-radius: 12px;
+    box-shadow: 7px 7px 7px rgba(0, 0, 0, 0.15);
+    filter: blur(3.5px);
+    z-index: -1;
+  }
+
+  .biz-card-glow-inner {
+    position: relative;
+    width: 100%;
+    background: #FFCA84;
+    border-radius: 9px;
+    padding-top: 28px;
+  }
+
+  .biz-card-deal {
+    position: absolute;
+    top: 6px;
+    left: 12px;
+    color: black;
+    font-size: 14px;
+    font-weight: 510;
+    line-height: 16px;
+    z-index: 2;
+  }
+
+  .biz-card-inner {
+    width: 100%;
+    height: 196px;
+    background: #F0F0F0;
+    border-radius: 9px;
+  }
+
+  /* ── Normal card ── */
+  .biz-card-normal .biz-card-inner {
+    width: 100%;
+    height: 196px;
+    background: #F0F0F0;
+    border-radius: 9px;
+  }
+
+  /* ── Business Label ── */
+  .biz-card-label {
+    margin-top: 14px;
+    color: black;
+    font-size: 14px;
+    font-weight: 510;
+    line-height: 16px;
+  }
+</style>
+</head>
+<body>
+
+<div class="fav-page">
+  <!-- Header -->
+  <h1 class="fav-title">Favorites</h1>
+
+  <!-- AI Group Cards -->
+  <div class="ai-cards-row">
+    <div class="ai-card">
+      <div class="ai-card-layer1"></div>
+      <div class="ai-card-layer2"></div>
+      <div class="ai-card-layer3">
+        <div class="ai-card-label">Most Visited Quiet Places</div>
+      </div>
+    </div>
+    <div class="ai-card">
+      <div class="ai-card-layer1"></div>
+      <div class="ai-card-layer2"></div>
+      <div class="ai-card-layer3">
+        <div class="ai-card-label">Most Visited Quiet Places</div>
+      </div>
+    </div>
+    <div class="ai-card">
+      <div class="ai-card-layer1"></div>
+      <div class="ai-card-layer2"></div>
+      <div class="ai-card-layer3">
+        <div class="ai-card-label">Most Visited Quiet Places</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Divider -->
+  <hr class="fav-divider">
+
+  <!-- Business Cards Row -->
+  <div class="biz-cards-row">
+    <!-- Featured card with gold glow -->
+    <div class="biz-card biz-card-featured">
+      <div class="biz-card-glow">
+        <div class="biz-card-deal">10% Off</div>
+        <div class="biz-card-inner"></div>
+      </div>
+      <div class="biz-card-label">Name of Business | Coupon</div>
+    </div>
+
+    <!-- Normal card -->
+    <div class="biz-card biz-card-normal">
+      <div class="biz-card-inner"></div>
+      <div class="biz-card-label">Name of Business | Coupon</div>
+    </div>
+
+    <!-- Normal card -->
+    <div class="biz-card biz-card-normal">
+      <div class="biz-card-inner"></div>
+      <div class="biz-card-label">Name of Business | Coupon</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,28 @@
+I have provided the HTML structure (index.html) and a reference screenshot.
+
+Structure & Layout:
+Recreate the UI from the screenshot with pixel-perfect accuracy. Use the provided HTML as the single source of truth for layout, spacing, and dimensions. Do not modify the structure or layout logic.
+
+Visual-to-Element Mapping (IMPORTANT):
+While generating the code, visually inspect the reference screenshot and use appropriate semantic HTML elements based on what is shown in the image.
+
+Wherever the screenshot shows a button, use a <button>
+
+Wherever it shows a text field or input box, use an <input> or <textarea>
+
+Wherever it shows navigation or menu items, use <nav> and <a>
+
+Wherever it shows pagination or controls, use proper interactive elements
+Do this without changing layout, spacing, dimensions, or visual appearance.
+
+Images:
+The provided HTML already contains the correct local paths to the exported images (for example: src="images/LayerName_100x200.png"). DO NOT CHANGE THESE PATHS. Use them exactly as they appear in the source HTML. Do not use placeholders or substitute images.
+
+Typography:
+Match font sizes, font weights, and line heights exactly as defined in the provided code. Do not adjust or approximate typography values.
+
+Styling:
+Use pure CSS only for all styling. Do not use Tailwind or any CSS frameworks.
+
+Code Output:
+Provide the FULL, COMPLETE, WORKING CODE (entire index.html and required CSS). Do not share partial snippets or incomplete sections.
