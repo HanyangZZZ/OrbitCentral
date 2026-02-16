@@ -1,190 +1,154 @@
-# FBLC — Local Business Cross-Platform App
+# FBLC — Local Business Discovery Platform
 
-> By Abby and Hanyang
+A cross-platform app for discovering local businesses using AI-powered semantic search, built by **Abby & Hanyang**.
 
-## Tech Stack
+## What Is This?
 
-| Layer     | Technology                                  |
-| --------- | ------------------------------------------- |
-| Frontend  | Vue 3 + Vite + Vue Router                   |
-| Backend   | Django 5 + Django REST Framework             |
-| Database  | MySQL 8.0 (Docker)                           |
-| Mobile    | Capacitor 6 (iOS)                            |
-| API Style | RESTful, paginated, filterable               |
+FBLC helps users find local businesses using AI-powered **"vibe search"**. Instead of matching keywords, it understands meaning — searching "cozy place for coffee" finds relevant cafés even if they don't use those exact words.
+
+**Key capabilities:**
+
+- **Weighted vibe search** — `score = 0.70 × vibe_similarity + 0.15 × proximity + 0.15 × rating`
+- **Smart auto-import** — first search in a new area automatically imports businesses from Google Places
+- **AI classification** — GPT-4o-mini categorizes businesses and generates semantic tags
+- **Tag consolidation** — AI-powered deduplication merges similar tags (e.g. "pet-friendly" + "dog-friendly" → one tag)
+- **Vector tag search** — users can search tags by meaning, not just text matching
+- **Hierarchical categories** — 22 seeded categories (5 parent + 17 subcategories)
+
+## Architecture
+
+```
+Browser / iOS app
+      │
+      ▼
+  Nginx :80  (virtual-host routing)
+      │
+      ├── orbitcentral.ca          →  Vue SPA (built into image) + /api/ proxy
+      ├── admin.orbitcentral.ca    →  Adminer (DB portal)
+      ├── flower.orbitcentral.ca   →  Flower (Celery dashboard)
+      └── unknown Host             →  444 (connection drop)
+      │
+      ▼
+  Django/Gunicorn :8000
+      │
+      ├── REST API (DRF)
+      ├── AI classification & tagging (GPT-4o-mini)
+      └── Vector embeddings (text-embedding-3-small)
+      │                              │
+      │                  task.delay() │
+      ▼                              ▼
+  PostgreSQL :5432            Redis :6379 ──► Celery Worker
+      ├── pgvector                              ├── Google Places auto-import
+      ├── PostGIS                               ├── AI classification
+      └── pg_trgm                               └── Retries (3×, crash-safe)
+```
 
 ## Project Structure
 
 ```
 FBLC/
-├── backend/
-│   ├── .env                          # Environment variables (git-ignored)
-│   ├── manage.py                     # Django management (uses development settings)
-│   ├── requirements.txt              # Python dependencies
-│   ├── api/
-│   │   ├── models/                   # One file per domain
-│   │   │   ├── user.py               # User, UserProfile
-│   │   │   ├── business.py           # Category, Business
-│   │   │   ├── review.py             # Review
-│   │   │   ├── bookmark.py           # Bookmark
-│   │   │   ├── reward.py             # Reward, UserCoupon
-│   │   │   └── automation.py         # AutomationLog
-│   │   ├── serializers.py            # DRF serializers (validation, JSON ↔ model)
-│   │   ├── viewsets.py               # DRF ModelViewSets (full CRUD)
-│   │   ├── urls.py                   # DRF Router → auto-generates all routes
-│   │   ├── pagination.py             # Paginated responses (50 per page)
-│   │   ├── exceptions.py             # Structured error logging
-│   │   └── admin.py                  # Django admin registrations
-│   └── server/
-│       ├── settings/
-│       │   ├── base.py               # Shared config (DRF, logging, DB)
-│       │   ├── development.py        # DEBUG=True, loose CORS, no throttle
-│       │   └── production.py         # DEBUG=False, strict CORS, security headers
-│       ├── urls.py                   # Root URL config (admin + api)
-│       ├── wsgi.py                   # Production WSGI entry point
-│       └── asgi.py                   # Production ASGI entry point
-├── frontend/
-│   ├── src/
-│   │   ├── api/client.js             # Axios client — all API functions
-│   │   ├── pages/HomePage.vue        # Data portal UI
-│   │   ├── router.js                 # Vue Router config
-│   │   ├── App.vue                   # Shell layout + nav
-│   │   └── main.js                   # App entry point
-│   ├── capacitor.config.json         # Capacitor config for iOS builds
-│   ├── vite.config.js                # Vite + proxy config
-│   └── package.json                  # Node dependencies
-└── .gitignore
+├── backend/                 Django REST API                → see backend/README.md
+├── frontend/                Vue 3 + Capacitor app          → see frontend/README.md
+├── postgres/                Custom PostgreSQL image (pgvector + PostGIS)
+├── nginx/                   Reverse proxy + frontend build (Dockerfile)
+├── docker-compose.yml       7 containers: postgres, redis, django, celery, nginx, adminer, flower
+├── Makefile                 Shortcut commands (run make help)
+├── DEPLOYMENT.md            Server deployment guide
+└── .env.production.example  Template for secrets / API keys
 ```
 
 ## Quick Start
 
-### 1. Backend
+Make sure [Docker Desktop](https://www.docker.com/products/docker-desktop/) is installed and running.
 
 ```bash
-# Create and activate venv
-python3 -m venv .venv
-source .venv/bin/activate
+# 1. Copy the environment template and fill in your values
+cp .env.production.example .env
+# → Set OPENAI_API_KEY, GOOGLE_PLACES_API_KEY, PG_PASSWORD, DJANGO_SECRET_KEY
 
-# Install dependencies
-cd backend
-pip install -r requirements.txt
+# 2. Build and start everything
+make build && make up
 
-# Start MySQL
-docker run -d --name fblc-mysql \
-  -p 3306:3306 \
-  -e MYSQL_DATABASE=fblc \
-  -e MYSQL_USER=fblc \
-  -e MYSQL_PASSWORD=fblc_password \
-  -e MYSQL_ROOT_PASSWORD=root_password \
-  mysql:8.0
+# 3. Verify it's working
+make status
+curl http://localhost/api/categories/
 
-# Run migrations
-python manage.py migrate
-
-# Start dev server
-python manage.py runserver 0.0.0.0:8001
+# 4. Try a search (auto-imports businesses on first search in an area)
+curl "http://localhost/api/businesses/search/?q=cozy+coffee&lat=43.6532&lng=-79.3832"
 ```
 
-The API is at `http://localhost:8001/api/`.
-The browsable API (interactive docs) is at `http://localhost:8001/api/` in a browser.
+**Access points:**
 
-### 2. Frontend
+| Service | URL |
+|---------|-----|
+| Frontend | `http://orbitcentral.ca` (prod) · `http://localhost:5173` (dev) |
+| API | `http://orbitcentral.ca/api/` (prod) · `http://localhost/api/` (dev) |
+| Admin panel | `http://orbitcentral.ca/admin/` |
+| Adminer (DB portal) | `http://admin.orbitcentral.ca` |
+| Flower (task monitor) | `http://flower.orbitcentral.ca` |
+| Health check | `http://orbitcentral.ca/health` |
 
-```bash
-cd frontend
-npm install
-npm run dev
-```
+## Useful Commands
 
-The Vite dev server proxies `/api` → `http://localhost:8001`.
+Run `make help` to see all available commands.
 
-### 3. Adminer (MySQL web GUI)
-
-```bash
-docker run -d --name fblc-adminer -p 8090:8080 adminer
-```
-
-Open `http://localhost:8090`:
-- System: **MySQL**
-- Server: **host.docker.internal** (or `127.0.0.1` on Linux)
-- Database: `fblc`
-- Username: `fblc`
-- Password: `fblc_password`
-
-## API Overview
-
-All endpoints support **GET, POST, PUT, PATCH, DELETE**. List responses are paginated.
-
-| Resource         | Endpoint                    | Filter fields                                | Search fields                      |
-| ---------------- | --------------------------- | -------------------------------------------- | ---------------------------------- |
-| Users            | `/api/users/`               | `role`, `is_verified_human`                  | `email`                            |
-| Profiles         | `/api/profiles/`            | `high_contrast`, `keyboard_only_nav`         | `display_name`, `user__email`      |
-| Categories       | `/api/categories/`          | —                                            | `name`, `slug`                     |
-| Businesses       | `/api/businesses/`          | `category`, `owner`, `onboarding_status`     | `name`, `contact_email`, `google_place_id` |
-| Reviews          | `/api/reviews/`             | `business`, `user`, `rating`, `is_visible`   | `content`                          |
-| Bookmarks        | `/api/bookmarks/`           | `user`, `business`                           | —                                  |
-| Rewards          | `/api/rewards/`             | `provider_business`, `trigger_business`, `reward_type` | `title`                  |
-| Coupons          | `/api/coupons/`             | `user`, `reward`, `status`                   | —                                  |
-| Automation Logs  | `/api/automation-logs/`     | `business`, `action_type`, `status`          | —                                  |
-
-### Pagination
-
-```
-GET /api/users/?page=2&page_size=10
-```
-
-Response:
-```json
-{
-  "count": 42,
-  "next": "http://localhost:8001/api/users/?page=3&page_size=10",
-  "previous": "http://localhost:8001/api/users/?page=1&page_size=10",
-  "results": [ ... ]
-}
-```
-
-### Filtering, Search & Ordering
-
-```
-GET /api/businesses/?category=1&onboarding_status=active
-GET /api/businesses/?search=cafe
-GET /api/businesses/?ordering=-avg_rating
-```
+| Command | What It Does |
+|---------|-------------|
+| `make build` | Build all Docker images |
+| `make up` / `make down` | Start / stop all containers |
+| `make restart` | Restart all services |
+| `make logs` | Stream live logs from all services |
+| `make logs-django` | Django logs only |
+| `make logs-celery` | Celery worker logs only |
+| `make migrate` | Apply database migrations |
+| `make createsuperuser` | Create an admin login |
+| `make db-shell` | Open a PostgreSQL terminal |
+| `make django-shell` | Open a Django Python shell |
+| `make backup` | Save a database backup to `backups/` |
+| `make embed` | Generate AI embeddings for businesses without one |
+| `make embed-all` | Regenerate ALL embeddings |
+| `make clean` | Remove all containers, volumes, and images |
 
 ## Environment Variables
 
-Defined in `backend/.env` (git-ignored):
+Key variables in `.env` (see `.env.production.example` for the full list):
 
-| Variable             | Default            | Description              |
-| -------------------- | ------------------ | ------------------------ |
-| `DJANGO_SECRET_KEY`  | (insecure default) | Change in production!    |
-| `DJANGO_DEBUG`       | `true`             | Set `false` in prod      |
-| `MYSQL_DATABASE`     | `fblc`             | MySQL database name      |
-| `MYSQL_USER`         | `fblc`             | MySQL user               |
-| `MYSQL_PASSWORD`     | `fblc_password`    | MySQL password           |
-| `MYSQL_HOST`         | `127.0.0.1`        | MySQL host               |
-| `MYSQL_PORT`         | `3306`             | MySQL port               |
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `OPENAI_API_KEY` | Yes | OpenAI API key for embeddings + AI classification |
+| `GOOGLE_PLACES_API_KEY` | Yes | Google Places API key for auto-import |
+| `PG_PASSWORD` | Yes | PostgreSQL password |
+| `DJANGO_SECRET_KEY` | Yes | Django secret key for security |
+| `ALLOWED_HOSTS` | Prod | Comma-separated allowed hostnames |
+| `CORS_ALLOWED_ORIGINS` | Prod | Allowed frontend origins |
 
-## Settings
+## Tech Stack
 
-| File               | Used when                          |
-| ------------------ | ---------------------------------- |
-| `development.py`   | `manage.py runserver` (default)    |
-| `production.py`    | WSGI/ASGI (gunicorn, uvicorn)      |
+| Layer | Technology | Purpose |
+|-------|-----------|---------|
+| Frontend | Vue 3, Vite, Vue Router | Web UI |
+| Mobile | Capacitor 6 | iOS native wrapper |
+| Backend | Django 5, Django REST Framework | REST API + business logic |
+| Task Queue | Celery 5, Redis 7 | Background task processing (imports, AI) |
+| Monitoring | Flower | Celery task dashboard (port 5555) |
+| Database | PostgreSQL 16 | Data storage |
+| Vector Search | pgvector + OpenAI `text-embedding-3-small` | 1536-dim semantic search |
+| Geography | PostGIS (GeoDjango) | Location/distance queries |
+| AI | GPT-4o-mini | Business classification + tag generation/consolidation |
+| Auto-import | Google Places API (New) | Bulk business discovery |
+| Proxy | Nginx 1.27 | Reverse proxy, rate limiting, static files |
+| DB Portal | Adminer | Web-based database management |
+| Deployment | Docker Compose | 7 containers orchestrated |
 
-Override with: `DJANGO_SETTINGS_MODULE=server.settings.production`
+## Documentation
 
-## Capacitor (iOS)
+| Doc | Covers |
+|-----|--------|
+| **[backend/README.md](backend/README.md)** | API endpoints, models, services, management commands |
+| **[frontend/README.md](frontend/README.md)** | Vue app, API client reference, Capacitor (iOS) |
+| **[frontend/API.md](frontend/API.md)** | Complete API reference with examples |
+| **[DEPLOYMENT.md](DEPLOYMENT.md)** | Server setup, deployment steps, HTTPS, backups |
 
-```bash
-cd frontend
-npm run build
-npx cap sync ios
-npx cap open ios
-```
+---
 
-## Django Admin
-
-```bash
-python manage.py createsuperuser
-# Then open http://localhost:8001/admin/
-```
+*Built by Abby & Hanyang · 2025–2026*

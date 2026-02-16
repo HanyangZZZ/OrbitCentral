@@ -1,0 +1,12 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "FBLC Frontend Dev Server",
+			"type": "shell",
+			"command": "cd /Users/hanyangzhuo/Documents/FBLC/frontend && npx vite --host 0.0.0.0",
+			"isBackground": true,
+			"problemMatcher": []
+		}
+	]
+}

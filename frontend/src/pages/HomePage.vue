@@ -1,618 +1,297 @@
 <template>
-  <div class="portal">
-    <header class="hero">
-      <div>
-        <h1>FBLC Data Portal</h1>
-        <p>Manage your MySQL data through Django REST Framework APIs.</p>
+  <div style="max-width:1100px;margin:0 auto;padding:20px;font-family:system-ui;color:#e2e8f0;background:#0a1220;min-height:100vh">
+    <h1>FBLC API Demo</h1>
+    <p style="color:#94a3b8">Minimal frontend showing all available APIs. For frontend devs to reference.</p>
+
+    <!-- ── Stats ──────────────────────────────────────────────────────── -->
+    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
+      <h2>GET /api/businesses/stats/</h2>
+      <button @click="loadStats">Load Stats</button>
+      <pre v-if="stats" style="overflow-x:auto;font-size:12px;background:#1e293b;padding:12px;border-radius:6px">{{ JSON.stringify(stats, null, 2) }}</pre>
+    </section>
+
+    <!-- ── Categories ─────────────────────────────────────────────────── -->
+    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
+      <h2>GET /api/categories/</h2>
+      <button @click="loadCategories">Load Categories</button>
+      <div v-if="categories.length" style="margin-top:8px;font-size:13px">
+        <div v-for="c in categories" :key="c.id" style="padding:4px 0;border-bottom:1px solid #1e293b">
+          <b>#{{ c.id }}</b> {{ c.name }} ({{ c.slug }}) {{ c.parent_name ? '← ' + c.parent_name : '' }}
+          <span style="color:#64748b"> icon: {{ c.icon_name || '—' }}</span>
+        </div>
       </div>
-      <div class="hero-actions">
-        <button type="button" class="btn ghost" @click="refreshAll">Refresh All</button>
-        <span v-if="loading" class="status">Syncing...</span>
+    </section>
+
+    <!-- ── Tags ───────────────────────────────────────────────────────── -->
+    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
+      <h2>GET /api/tags/ <span style="color:#94a3b8;font-size:14px">?q=&amp;min_usage=</span> &nbsp; GET /api/tags/search/ <span style="color:#94a3b8;font-size:14px">(vector)</span></h2>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
+        <input v-model="tagSearch" placeholder="Search tags (q=)" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+        <input v-model.number="tagMinUsage" type="number" placeholder="Min usage" style="width:100px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+        <button @click="loadTags">Search Tags</button>
       </div>
-    </header>
+      <div v-if="tags.length" style="font-size:13px">
+        <span style="color:#94a3b8">{{ tagTotal }} tags found. </span>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
+          <span v-for="t in tags" :key="t.id"
+            @click="toggleTag(t)"
+            :style="{
+              padding:'4px 10px',borderRadius:'999px',fontSize:'12px',cursor:'pointer',
+              background: selectedTagIds.includes(t.id) ? 'rgba(99,102,241,0.4)' : 'rgba(99,102,241,0.1)',
+              border: selectedTagIds.includes(t.id) ? '1px solid #6366f1' : '1px solid rgba(99,102,241,0.25)',
+              color:'#a5b4fc'
+            }">
+            {{ t.name }} <span style="color:#64748b">({{ t.usage_count }})</span>
+          </span>
+        </div>
+        <p v-if="selectedTagIds.length" style="font-size:12px;color:#fbbf24;margin-top:6px">
+          Selected tag IDs: {{ selectedTagIds.join(', ') }} — these will be applied to search
+        </p>
+      </div>
+    </section>
 
-    <p v-if="error" class="error">{{ error }}</p>
+    <!-- ── Search ─────────────────────────────────────────────────────── -->
+    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
+      <h2>GET /api/businesses/search/ <span style="color:#94a3b8;font-size:14px">?q=&amp;lat=&amp;lng=&amp;category=&amp;tag=&amp;sort=&amp;limit=</span></h2>
+      <form @submit.prevent="runSearch" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+        <input v-model="sq" placeholder="Query (q=) e.g. cozy coffee" required style="flex:2;min-width:200px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+        <input v-model.number="slat" type="number" step="any" placeholder="lat" style="width:110px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+        <input v-model.number="slng" type="number" step="any" placeholder="lng" style="width:110px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+        <select v-model="scat" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px">
+          <option value="">All categories</option>
+          <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
+        </select>
+        <select v-model="ssort" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px">
+          <option value="">Weighted</option>
+          <option value="distance">Distance</option>
+          <option value="rating">Rating</option>
+        </select>
+        <input v-model.number="slimit" type="number" min="1" max="50" placeholder="limit" style="width:70px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+        <button type="submit" :disabled="searching">{{ searching ? 'Searching...' : 'Search' }}</button>
+        <button type="button" @click="slat=43.6532;slng=-79.3832" style="font-size:12px">📍 Toronto</button>
+      </form>
 
-    <section class="grid">
-      <!-- ── Users ──────────────────────────────────────────────────────── -->
-      <article class="card">
-        <h2>Users</h2>
-        <form class="form" @submit.prevent="createUserRecord">
-          <input v-model.trim="userForm.email" placeholder="Email" required />
-          <input v-model.trim="userForm.password_hash" placeholder="Password" required />
-          <select v-model="userForm.role">
-            <option value="customer">Customer</option>
-            <option value="merchant">Merchant</option>
-            <option value="admin">Admin</option>
-          </select>
-          <label class="check">
-            <input type="checkbox" v-model="userForm.is_verified_human" /> Verified human
-          </label>
-          <button class="btn" type="submit">Create user</button>
-        </form>
-        <ul class="list">
-          <li v-for="user in users" :key="user.id">
-            <strong>#{{ user.id }}</strong> {{ user.email }} · {{ user.role }}
-          </li>
-        </ul>
-      </article>
+      <!-- Tag filter picker -->
+      <div style="margin-bottom:10px;padding:10px;background:#1e293b;border-radius:6px">
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
+          <span style="font-size:12px;color:#94a3b8;white-space:nowrap">Filter by tags <span style="color:#6366f1">(vector search)</span>:</span>
+          <input v-model="searchTagQ" @input="searchTagsInline" placeholder="Semantic search e.g. 'outdoor dining', 'live music'..." style="flex:1;background:#0f172a;border:1px solid #475569;color:#e2e8f0;padding:5px 10px;border-radius:4px;font-size:12px" />
+          <button v-if="selectedTagIds.length" @click="selectedTagIds=[]" style="font-size:11px;color:#f87171;background:none;border:1px solid rgba(248,113,113,0.3);border-radius:4px;padding:3px 8px;cursor:pointer">Clear all</button>
+        </div>
+        <!-- Selected tags -->
+        <div v-if="selectedTagIds.length" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
+          <span v-for="tid in selectedTagIds" :key="'sel-'+tid" @click="removeTag(tid)"
+            style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;cursor:pointer;background:rgba(99,102,241,0.35);border:1px solid #6366f1;color:#c7d2fe">
+            {{ tagNameById(tid) }} ✕
+          </span>
+          <span style="font-size:10px;color:#fbbf24;align-self:center;margin-left:4px">AND filter ({{ selectedTagIds.length }})</span>
+        </div>
+        <!-- Inline search results -->
+        <div v-if="inlineTags.length" style="display:flex;flex-wrap:wrap;gap:4px">
+          <span v-for="t in inlineTags" :key="'it-'+t.id" @click="addTag(t)"
+            :style="{
+              padding:'3px 9px',borderRadius:'999px',fontSize:'11px',cursor:'pointer',
+              background: selectedTagIds.includes(t.id) ? 'rgba(99,102,241,0.35)' : 'rgba(99,102,241,0.08)',
+              border: selectedTagIds.includes(t.id) ? '1px solid #6366f1' : '1px solid rgba(99,102,241,0.2)',
+              color: selectedTagIds.includes(t.id) ? '#c7d2fe' : '#a5b4fc',
+              opacity: selectedTagIds.includes(t.id) ? 0.5 : 1
+            }">
+            {{ t.name }} <span style="color:#64748b">({{ t.usage_count }}<span v-if="t.similarity"> · {{ (t.similarity*100).toFixed(0) }}%</span>)</span>
+          </span>
+        </div>
+        <p v-if="searchTagQ && !inlineTags.length && !tagLoading" style="font-size:11px;color:#64748b;margin:4px 0 0">No tags found</p>
+      </div>
 
-      <!-- ── Profiles ───────────────────────────────────────────────────── -->
-      <article class="card">
-        <h2>Profiles</h2>
-        <form class="form" @submit.prevent="upsertProfileRecord">
-          <input v-model.number="profileForm.user" type="number" min="1" placeholder="User ID" required />
-          <input v-model.trim="profileForm.display_name" placeholder="Display name" />
-          <input v-model.trim="profileForm.avatar_url" placeholder="Avatar URL" />
-          <label class="check">
-            <input type="checkbox" v-model="profileForm.high_contrast" /> High contrast
-          </label>
-          <label class="check">
-            <input type="checkbox" v-model="profileForm.keyboard_only_nav" /> Keyboard only
-          </label>
-          <input v-model.number="profileForm.loyalty_points" type="number" min="0" placeholder="Loyalty points" />
-          <button class="btn" type="submit">Upsert profile</button>
-        </form>
-        <ul class="list">
-          <li v-for="profile in profiles" :key="profile.user">
-            <strong>User #{{ profile.user }}</strong> {{ profile.display_name || 'No name' }}
-          </li>
-        </ul>
-      </article>
+      <p v-if="searchTime" style="font-size:12px;color:#94a3b8">{{ searchResults.length }} results in {{ searchTime }}ms</p>
+      <p v-if="searchErr" style="color:#f87171;font-size:13px">{{ searchErr }}</p>
 
-      <!-- ── Categories ─────────────────────────────────────────────────── -->
-      <article class="card">
-        <h2>Categories</h2>
-        <form class="form" @submit.prevent="createCategoryRecord">
-          <input v-model.trim="categoryForm.name" placeholder="Name" required />
-          <input v-model.trim="categoryForm.slug" placeholder="Slug" required />
-          <input v-model.trim="categoryForm.icon_name" placeholder="Icon" />
-          <button class="btn" type="submit">Create category</button>
-        </form>
-        <ul class="list">
-          <li v-for="category in categories" :key="category.id">
-            <strong>#{{ category.id }}</strong> {{ category.name }} · {{ category.slug }}
-          </li>
-        </ul>
-      </article>
+      <!-- Results table showing ALL fields -->
+      <div v-if="searchResults.length" style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:8px">
+          <thead>
+            <tr style="border-bottom:1px solid #334155;color:#94a3b8;text-align:left">
+              <th style="padding:6px">#</th>
+              <th style="padding:6px">ID</th>
+              <th style="padding:6px">Name</th>
+              <th style="padding:6px">Category</th>
+              <th style="padding:6px">Tags</th>
+              <th style="padding:6px">Rating</th>
+              <th style="padding:6px">Reviews</th>
+              <th style="padding:6px">Price</th>
+              <th style="padding:6px">Similarity</th>
+              <th style="padding:6px">Distance</th>
+              <th style="padding:6px">Score</th>
+              <th style="padding:6px">Phone</th>
+              <th style="padding:6px">Website</th>
+              <th style="padding:6px">Address</th>
+              <th style="padding:6px">Status</th>
+              <th style="padding:6px">Lat/Lng</th>
+              <th style="padding:6px">Google ID</th>
+              <th style="padding:6px">Description</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(r, i) in searchResults" :key="r.id" style="border-bottom:1px solid #1e293b">
+              <td style="padding:6px">{{ i+1 }}</td>
+              <td style="padding:6px">{{ r.id }}</td>
+              <td style="padding:6px;white-space:nowrap"><b>{{ r.name }}</b></td>
+              <td style="padding:6px;white-space:nowrap">{{ r.category_detail?.name || '—' }} <span style="color:#64748b">{{ r.category_detail?.parent_name ? '(' + r.category_detail.parent_name + ')' : '' }}</span></td>
+              <td style="padding:6px"><span v-for="t in r.tags" :key="t.id" style="display:inline-block;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);border-radius:999px;padding:1px 6px;margin:1px 2px;font-size:10px;color:#7dd3fc">{{ t.name }}</span></td>
+              <td style="padding:6px">{{ r.avg_rating ?? '—' }}★</td>
+              <td style="padding:6px">{{ r.user_rating_count ?? r.review_count ?? 0 }}</td>
+              <td style="padding:6px">{{ r.price_level != null ? '$'.repeat(r.price_level) : '—' }}</td>
+              <td style="padding:6px">{{ r.similarity != null ? (r.similarity*100).toFixed(1)+'%' : '—' }}</td>
+              <td style="padding:6px">{{ r.distance_km != null ? r.distance_km.toFixed(2)+' km' : '—' }}</td>
+              <td style="padding:6px">{{ r.score != null ? r.score.toFixed(3) : '—' }}</td>
+              <td style="padding:6px;white-space:nowrap">{{ r.phone || '—' }}</td>
+              <td style="padding:6px"><a v-if="r.website_url" :href="r.website_url" target="_blank" style="color:#38bdf8;font-size:10px">link</a><span v-else>—</span></td>
+              <td style="padding:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis">{{ r.address || '—' }}</td>
+              <td style="padding:6px;white-space:nowrap">{{ r.business_status || r.onboarding_status || '—' }}</td>
+              <td style="padding:6px;font-size:10px;color:#64748b">{{ r.lat?.toFixed(4) }}, {{ r.lng?.toFixed(4) }}</td>
+              <td style="padding:6px;font-size:9px;color:#64748b;max-width:80px;overflow:hidden;text-overflow:ellipsis">{{ r.google_place_id || '—' }}</td>
+              <td style="padding:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;color:#94a3b8">{{ r.description || '—' }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
-      <!-- ── Businesses ─────────────────────────────────────────────────── -->
-      <article class="card">
-        <h2>Businesses</h2>
-        <form class="form" @submit.prevent="createBusinessRecord">
-          <input v-model.trim="businessForm.name" placeholder="Name" required />
-          <input v-model.number="businessForm.lat" type="number" step="0.000001" placeholder="Latitude" required />
-          <input v-model.number="businessForm.lng" type="number" step="0.000001" placeholder="Longitude" required />
-          <input v-model.number="businessForm.category" type="number" min="1" placeholder="Category ID" />
-          <input v-model.trim="businessForm.contact_email" placeholder="Contact email" />
-          <button class="btn" type="submit">Create business</button>
-        </form>
-        <ul class="list">
-          <li v-for="business in businesses" :key="business.id">
-            <strong>#{{ business.id }}</strong> {{ business.name }} · Rating {{ business.avg_rating }}
-          </li>
-        </ul>
-      </article>
+      <!-- Raw JSON toggle -->
+      <div v-if="searchResults.length" style="margin-top:8px">
+        <button @click="showRaw=!showRaw" style="font-size:11px">{{ showRaw ? 'Hide' : 'Show' }} Raw JSON</button>
+        <pre v-if="showRaw" style="font-size:10px;background:#1e293b;padding:12px;border-radius:6px;max-height:400px;overflow:auto">{{ JSON.stringify(searchResults, null, 2) }}</pre>
+      </div>
+    </section>
 
-      <!-- ── Reviews ────────────────────────────────────────────────────── -->
-      <article class="card">
-        <h2>Reviews</h2>
-        <form class="form" @submit.prevent="createReviewRecord">
-          <select v-model.number="reviewForm.business" required>
-            <option disabled value="">Select business</option>
-            <option v-for="business in businesses" :key="business.id" :value="business.id">
-              #{{ business.id }} {{ business.name }}
-            </option>
-          </select>
-          <input v-model.number="reviewForm.user" type="number" min="1" placeholder="User ID" />
-          <input v-model.number="reviewForm.rating" type="number" min="1" max="5" placeholder="Rating" required />
-          <input v-model.trim="reviewForm.content" placeholder="Content" />
-          <button class="btn" type="submit">Add review</button>
-        </form>
-        <button class="btn ghost" type="button" @click="loadReviews">Load reviews</button>
-        <ul class="list">
-          <li v-for="review in reviews" :key="review.id">
-            <strong>#{{ review.id }}</strong> Biz {{ review.business }} · {{ review.rating }}★
-          </li>
-        </ul>
-      </article>
-
-      <!-- ── Bookmarks ──────────────────────────────────────────────────── -->
-      <article class="card">
-        <h2>Bookmarks</h2>
-        <form class="form" @submit.prevent="createBookmarkRecord">
-          <input v-model.number="bookmarkForm.user" type="number" min="1" placeholder="User ID" required />
-          <input v-model.number="bookmarkForm.business" type="number" min="1" placeholder="Business ID" required />
-          <button class="btn" type="submit">Create bookmark</button>
-        </form>
-        <ul class="list">
-          <li v-for="bookmark in bookmarks" :key="bookmark.id">
-            User {{ bookmark.user }} → Biz {{ bookmark.business }}
-          </li>
-        </ul>
-      </article>
-
-      <!-- ── Rewards ────────────────────────────────────────────────────── -->
-      <article class="card">
-        <h2>Rewards</h2>
-        <form class="form" @submit.prevent="createRewardRecord">
-          <input v-model.number="rewardForm.provider_business" type="number" min="1" placeholder="Provider business ID" required />
-          <input v-model.number="rewardForm.trigger_business" type="number" min="1" placeholder="Trigger business ID" />
-          <input v-model.trim="rewardForm.title" placeholder="Title" required />
-          <input v-model.trim="rewardForm.reward_type" placeholder="Type (dividend)" />
-          <input v-model.number="rewardForm.discount_val" type="number" step="0.01" placeholder="Discount value" />
-          <button class="btn" type="submit">Create reward</button>
-        </form>
-        <ul class="list">
-          <li v-for="reward in rewards" :key="reward.id">
-            <strong>#{{ reward.id }}</strong> {{ reward.title }} · {{ reward.reward_type || 'standard' }}
-          </li>
-        </ul>
-      </article>
-
-      <!-- ── Coupons ────────────────────────────────────────────────────── -->
-      <article class="card">
-        <h2>Coupons</h2>
-        <form class="form" @submit.prevent="createCouponRecord">
-          <input v-model.number="couponForm.user" type="number" min="1" placeholder="User ID" required />
-          <input v-model.number="couponForm.reward" type="number" min="1" placeholder="Reward ID" required />
-          <select v-model="couponForm.status">
-            <option value="locked">Locked</option>
-            <option value="unlocked">Unlocked</option>
-            <option value="redeemed">Redeemed</option>
-          </select>
-          <button class="btn" type="submit">Create coupon</button>
-        </form>
-        <ul class="list">
-          <li v-for="coupon in coupons" :key="coupon.id">
-            <strong>#{{ coupon.id }}</strong> User {{ coupon.user }} · {{ coupon.status }}
-          </li>
-        </ul>
-      </article>
-
-      <!-- ── Automation Logs ────────────────────────────────────────────── -->
-      <article class="card">
-        <h2>Automation Logs</h2>
-        <form class="form" @submit.prevent="createLogRecord">
-          <input v-model.number="logForm.business" type="number" min="1" placeholder="Business ID" />
-          <input v-model.trim="logForm.action_type" placeholder="Action type" />
-          <input v-model.trim="logForm.status" placeholder="Status" />
-          <button class="btn" type="submit">Create log</button>
-        </form>
-        <ul class="list">
-          <li v-for="log in logs" :key="log.id">
-            <strong>#{{ log.id }}</strong> {{ log.action_type || 'Action' }} · {{ log.status || 'Status' }}
-          </li>
-        </ul>
-      </article>
+    <!-- ── Businesses List ────────────────────────────────────────────── -->
+    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
+      <h2>GET /api/businesses/ <span style="color:#94a3b8;font-size:14px">(paginated)</span></h2>
+      <button @click="loadBusinesses">Load Businesses</button>
+      <p v-if="businesses.length" style="font-size:12px;color:#94a3b8">Showing {{ businesses.length }} of {{ bizTotal }}</p>
+      <div v-if="businesses.length" style="max-height:300px;overflow-y:auto;font-size:12px;margin-top:8px">
+        <div v-for="b in businesses" :key="b.id" style="padding:4px 0;border-bottom:1px solid #1e293b">
+          <b>#{{ b.id }}</b> {{ b.name }}
+          <span style="color:#64748b"> · {{ b.avg_rating }}★ ({{ b.user_rating_count }}) · {{ b.category_detail?.name || '—' }} · {{ b.address || '—' }}</span>
+          <span v-if="b.phone" style="color:#475569"> · {{ b.phone }}</span>
+        </div>
+      </div>
     </section>
   </div>
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue'
-import {
-  createAutomationLog,
-  createBookmark,
-  createBusiness,
-  createCategory,
-  createCoupon,
-  createReview,
-  createReward,
-  createUser,
-  getAutomationLogs,
-  getBookmarks,
-  getBusinesses,
-  getCategories,
-  getCoupons,
-  getProfiles,
-  getReviews,
-  getRewards,
-  getUsers,
-  upsertProfile
-} from '../api/client'
+import { ref, onMounted } from 'vue'
+import { getCategories, getTags, searchTags, getBusinesses, getStats, searchBusinesses } from '../api/client'
 
-const loading = ref(false)
-const error = ref('')
-
-const users = ref([])
-const profiles = ref([])
+const stats = ref(null)
 const categories = ref([])
+const tags = ref([])
+const tagTotal = ref(0)
+const tagSearch = ref('')
+const tagMinUsage = ref(2)
+const selectedTagIds = ref([])
 const businesses = ref([])
-const reviews = ref([])
-const bookmarks = ref([])
-const rewards = ref([])
-const coupons = ref([])
-const logs = ref([])
+const bizTotal = ref(0)
 
-const userForm = ref({
-  email: '',
-  password_hash: '',
-  role: 'customer',
-  is_verified_human: false
-})
+const sq = ref('')
+const slat = ref(null)
+const slng = ref(null)
+const scat = ref('')
+const ssort = ref('')
+const slimit = ref(10)
+const searching = ref(false)
+const searchResults = ref([])
+const searchErr = ref('')
+const searchTime = ref(null)
+const showRaw = ref(false)
+const searchTagQ = ref('')
+const inlineTags = ref([])
+const tagLoading = ref(false)
+const tagCache = ref({})
 
-const profileForm = ref({
-  user: '',
-  display_name: '',
-  avatar_url: '',
-  high_contrast: false,
-  keyboard_only_nav: false,
-  loyalty_points: 0
-})
+const loadStats = async () => { stats.value = (await getStats()).data }
+const loadCategories = async () => { categories.value = (await getCategories()).data.results ?? [] }
 
-const categoryForm = ref({
-  name: '',
-  slug: '',
-  icon_name: ''
-})
+const loadTags = async () => {
+  const params = {}
+  if (tagSearch.value) params.q = tagSearch.value
+  if (tagMinUsage.value) params.min_usage = tagMinUsage.value
+  const res = await getTags(params)
+  tags.value = res.data.results ?? []
+  tagTotal.value = res.data.count ?? tags.value.length
+  tags.value.forEach(t => { tagCache.value[t.id] = t.name })
+}
 
-const businessForm = ref({
-  name: '',
-  lat: 37.7749,
-  lng: -122.4194,
-  category: '',
-  contact_email: ''
-})
+const toggleTag = (t) => {
+  const idx = selectedTagIds.value.indexOf(t.id)
+  if (idx >= 0) selectedTagIds.value.splice(idx, 1)
+  else selectedTagIds.value.push(t.id)
+  tagCache.value[t.id] = t.name
+}
 
-const reviewForm = ref({
-  business: '',
-  user: '',
-  rating: 5,
-  content: ''
-})
+const addTag = (t) => {
+  if (!selectedTagIds.value.includes(t.id)) {
+    selectedTagIds.value.push(t.id)
+    tagCache.value[t.id] = t.name
+  }
+}
 
-const bookmarkForm = ref({
-  user: '',
-  business: ''
-})
+const removeTag = (tid) => {
+  selectedTagIds.value = selectedTagIds.value.filter(id => id !== tid)
+}
 
-const rewardForm = ref({
-  provider_business: '',
-  trigger_business: '',
-  title: '',
-  reward_type: 'dividend',
-  discount_val: ''
-})
+const tagNameById = (tid) => tagCache.value[tid] || `#${tid}`
 
-const couponForm = ref({
-  user: '',
-  reward: '',
-  status: 'locked'
-})
+let searchTagTimer = null
+const searchTagsInline = () => {
+  clearTimeout(searchTagTimer)
+  searchTagTimer = setTimeout(async () => {
+    if (!searchTagQ.value.trim()) { inlineTags.value = []; return }
+    tagLoading.value = true
+    try {
+      // Vector semantic search — finds related tags even if query doesn't match name
+      const res = await searchTags({ q: searchTagQ.value, min_usage: 1, limit: 30 })
+      inlineTags.value = res.data ?? res.data.results ?? []
+      inlineTags.value.forEach(t => { tagCache.value[t.id] = t.name })
+    } catch { inlineTags.value = [] }
+    tagLoading.value = false
+  }, 350)
+}
 
-const logForm = ref({
-  business: '',
-  action_type: '',
-  status: ''
-})
+const loadBusinesses = async () => {
+  const res = await getBusinesses()
+  businesses.value = res.data.results ?? []
+  bizTotal.value = res.data.count ?? businesses.value.length
+}
 
-// ── Data fetching ─────────────────────────────────────────────────────────────
-// DRF paginated responses: { count, next, previous, results }
-const extractResults = (response) => response.data.results ?? []
-
-const refreshAll = async () => {
-  loading.value = true
-  error.value = ''
+const runSearch = async () => {
+  searching.value = true
+  searchErr.value = ''
+  searchResults.value = []
+  searchTime.value = null
+  const t0 = performance.now()
   try {
-    const [
-      usersRes,
-      profilesRes,
-      categoriesRes,
-      businessesRes,
-      bookmarksRes,
-      rewardsRes,
-      couponsRes,
-      logsRes
-    ] = await Promise.all([
-      getUsers(),
-      getProfiles(),
-      getCategories(),
-      getBusinesses(),
-      getBookmarks(),
-      getRewards(),
-      getCoupons(),
-      getAutomationLogs()
-    ])
-
-    users.value = extractResults(usersRes)
-    profiles.value = extractResults(profilesRes)
-    categories.value = extractResults(categoriesRes)
-    businesses.value = extractResults(businessesRes)
-    bookmarks.value = extractResults(bookmarksRes)
-    rewards.value = extractResults(rewardsRes)
-    coupons.value = extractResults(couponsRes)
-    logs.value = extractResults(logsRes)
-  } catch (err) {
-    error.value = 'Unable to reach the backend. Is Django running?'
+    const params = { q: sq.value, limit: slimit.value || 10 }
+    if (slat.value != null) params.lat = slat.value
+    if (slng.value != null) params.lng = slng.value
+    if (scat.value) params.category = scat.value
+    if (ssort.value) params.sort = ssort.value
+    if (selectedTagIds.value.length) params.tag = selectedTagIds.value
+    searchResults.value = (await searchBusinesses(params)).data
+    searchTime.value = Math.round(performance.now() - t0)
+    loadStats()
+  } catch (e) {
+    searchErr.value = e.response?.data?.detail || 'Search failed'
   } finally {
-    loading.value = false
-  }
-}
-
-const loadReviews = async () => {
-  const businessId = Number(reviewForm.value.business)
-  if (!businessId) {
-    error.value = 'Select a business to load reviews.'
-    return
-  }
-  try {
-    const response = await getReviews({ business: businessId })
-    reviews.value = extractResults(response)
-  } catch (err) {
-    error.value = 'Failed to load reviews.'
-  }
-}
-
-// ── Create helpers ────────────────────────────────────────────────────────────
-const createUserRecord = async () => {
-  try {
-    await createUser({ ...userForm.value })
-    userForm.value = { email: '', password_hash: '', role: 'customer', is_verified_human: false }
-    await refreshAll()
-  } catch (err) {
-    error.value = err.response?.data?.detail || 'Failed to create user.'
-  }
-}
-
-const upsertProfileRecord = async () => {
-  try {
-    await upsertProfile({
-      ...profileForm.value,
-      user: Number(profileForm.value.user)
-    })
-    profileForm.value = {
-      user: '',
-      display_name: '',
-      avatar_url: '',
-      high_contrast: false,
-      keyboard_only_nav: false,
-      loyalty_points: 0
-    }
-    await refreshAll()
-  } catch (err) {
-    error.value = err.response?.data?.detail || 'Failed to upsert profile.'
-  }
-}
-
-const createCategoryRecord = async () => {
-  try {
-    await createCategory({ ...categoryForm.value })
-    categoryForm.value = { name: '', slug: '', icon_name: '' }
-    await refreshAll()
-  } catch (err) {
-    error.value = err.response?.data?.detail || 'Failed to create category.'
-  }
-}
-
-const createBusinessRecord = async () => {
-  try {
-    await createBusiness({
-      ...businessForm.value,
-      category: businessForm.value.category ? Number(businessForm.value.category) : null
-    })
-    businessForm.value = { name: '', lat: 37.7749, lng: -122.4194, category: '', contact_email: '' }
-    await refreshAll()
-  } catch (err) {
-    error.value = err.response?.data?.detail || 'Failed to create business.'
-  }
-}
-
-const createReviewRecord = async () => {
-  const businessId = Number(reviewForm.value.business)
-  if (!businessId) {
-    error.value = 'Select a business to add a review.'
-    return
-  }
-  try {
-    await createReview({
-      business: businessId,
-      user: reviewForm.value.user ? Number(reviewForm.value.user) : null,
-      rating: Number(reviewForm.value.rating),
-      content: reviewForm.value.content
-    })
-    reviewForm.value = { business: businessId, user: '', rating: 5, content: '' }
-    await loadReviews()
-  } catch (err) {
-    error.value = err.response?.data?.detail || 'Failed to create review.'
-  }
-}
-
-const createBookmarkRecord = async () => {
-  try {
-    await createBookmark({
-      user: Number(bookmarkForm.value.user),
-      business: Number(bookmarkForm.value.business)
-    })
-    bookmarkForm.value = { user: '', business: '' }
-    await refreshAll()
-  } catch (err) {
-    error.value = err.response?.data?.detail || 'Failed to create bookmark.'
-  }
-}
-
-const createRewardRecord = async () => {
-  try {
-    await createReward({
-      ...rewardForm.value,
-      provider_business: Number(rewardForm.value.provider_business),
-      trigger_business: rewardForm.value.trigger_business ? Number(rewardForm.value.trigger_business) : null
-    })
-    rewardForm.value = { provider_business: '', trigger_business: '', title: '', reward_type: 'dividend', discount_val: '' }
-    await refreshAll()
-  } catch (err) {
-    error.value = err.response?.data?.detail || 'Failed to create reward.'
-  }
-}
-
-const createCouponRecord = async () => {
-  try {
-    await createCoupon({
-      ...couponForm.value,
-      user: Number(couponForm.value.user),
-      reward: Number(couponForm.value.reward)
-    })
-    couponForm.value = { user: '', reward: '', status: 'locked' }
-    await refreshAll()
-  } catch (err) {
-    error.value = err.response?.data?.detail || 'Failed to create coupon.'
-  }
-}
-
-const createLogRecord = async () => {
-  try {
-    await createAutomationLog({
-      business: logForm.value.business ? Number(logForm.value.business) : null,
-      action_type: logForm.value.action_type,
-      status: logForm.value.status
-    })
-    logForm.value = { business: '', action_type: '', status: '' }
-    await refreshAll()
-  } catch (err) {
-    error.value = err.response?.data?.detail || 'Failed to create log.'
+    searching.value = false
   }
 }
 
 onMounted(() => {
-  refreshAll()
+  loadStats(); loadCategories(); loadTags()
+  // Pre-populate inline tag picker with popular tags
+  getTags({ min_usage: 5 }).then(res => {
+    inlineTags.value = res.data.results ?? []
+    inlineTags.value.forEach(t => { tagCache.value[t.id] = t.name })
+  }).catch(() => {})
 })
 </script>
-
-<style>
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
-</style>
-
-<style scoped>
-.portal {
-  min-height: 100vh;
-  padding: 40px clamp(20px, 4vw, 48px) 64px;
-  background: radial-gradient(circle at 10% 10%, #0f1c2e 0%, #0a1220 40%, #060b14 100%);
-  color: #e2e8f0;
-  font-family: 'Space Grotesk', 'Inter', system-ui, sans-serif;
-}
-
-.hero {
-  display: flex;
-  justify-content: space-between;
-  gap: 20px;
-  flex-wrap: wrap;
-  align-items: center;
-  margin-bottom: 28px;
-}
-
-.hero h1 {
-  margin: 0 0 6px;
-  font-size: 30px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-}
-
-.hero p {
-  margin: 0;
-  color: #94a3b8;
-}
-
-.hero-actions {
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.status {
-  font-size: 12px;
-  color: #fbbf24;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 18px;
-}
-
-.card {
-  background: rgba(15, 23, 42, 0.75);
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  border-radius: 18px;
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  box-shadow: 0 12px 30px rgba(2, 6, 23, 0.4);
-}
-
-.card h2 {
-  margin: 0;
-  font-size: 16px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: #e2e8f0;
-}
-
-.form {
-  display: grid;
-  gap: 8px;
-}
-
-.form input,
-.form select {
-  background: rgba(2, 6, 23, 0.6);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  border-radius: 10px;
-  padding: 10px 12px;
-  color: #e2e8f0;
-  font-size: 13px;
-}
-
-.form input::placeholder {
-  color: #64748b;
-}
-
-.btn {
-  border: none;
-  border-radius: 999px;
-  padding: 10px 14px;
-  background: linear-gradient(135deg, #38bdf8, #6366f1);
-  color: #0b1120;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.btn.ghost {
-  background: transparent;
-  border: 1px solid rgba(148, 163, 184, 0.4);
-  color: #e2e8f0;
-}
-
-.check {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  font-size: 12px;
-  color: #94a3b8;
-}
-
-.list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: grid;
-  gap: 6px;
-  font-size: 12px;
-  color: #cbd5f5;
-}
-
-.error {
-  background: rgba(239, 68, 68, 0.2);
-  border: 1px solid rgba(239, 68, 68, 0.5);
-  padding: 12px 16px;
-  border-radius: 12px;
-  color: #fecaca;
-  margin-bottom: 18px;
-}
-
-@media (max-width: 720px) {
-  .hero h1 {
-    font-size: 22px;
-  }
-}
-</style>

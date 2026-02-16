@@ -1,131 +1,91 @@
 """
-DRF serializers — one class per model.
-
-Serializers handle:
-  • Field-level + object-level validation
-  • JSON ↔ model conversion
-  • Controlling which fields appear in requests/responses
+DRF serializers — Category & Business only (other models deferred).
 """
 from rest_framework import serializers
 
-from .models import (
-    AutomationLog,
-    Bookmark,
-    Business,
-    Category,
-    Review,
-    Reward,
-    User,
-    UserCoupon,
-    UserProfile,
-)
+from .models import Business, Category, Tag
 
 
-# ── User ───────────────────────────────────────────────────────────────────────
-class UserSerializer(serializers.ModelSerializer):
+# ── Tag ────────────────────────────────────────────────────────────────────────
+class TagSerializer(serializers.ModelSerializer):
+    usage_count = serializers.IntegerField(read_only=True, default=0)
+
     class Meta:
-        model = User
-        fields = [
-            'id', 'email', 'password_hash', 'role',
-            'is_verified_human', 'created_at', 'updated_at',
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
-        extra_kwargs = {
-            'password_hash': {'write_only': True},
-        }
-
-    def create(self, validated_data):
-        raw_password = validated_data.pop('password_hash', None)
-        user = User(**validated_data)
-        if raw_password:
-            user.set_password(raw_password)
-        user.save()
-        return user
-
-    def update(self, instance, validated_data):
-        raw_password = validated_data.pop('password_hash', None)
-        for attr, value in validated_data.items():
-            setattr(instance, attr, value)
-        if raw_password:
-            instance.set_password(raw_password)
-        instance.save()
-        return instance
-
-
-# ── UserProfile ────────────────────────────────────────────────────────────────
-class UserProfileSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserProfile
-        fields = [
-            'user', 'display_name', 'avatar_url', 'high_contrast',
-            'keyboard_only_nav', 'persona_vector', 'loyalty_points', 'updated_at',
-        ]
-        read_only_fields = ['updated_at']
+        model = Tag
+        fields = ['id', 'name', 'usage_count']
+        read_only_fields = ['id']
 
 
 # ── Category ───────────────────────────────────────────────────────────────────
 class CategorySerializer(serializers.ModelSerializer):
+    parent_name = serializers.SerializerMethodField()
+
     class Meta:
         model = Category
-        fields = ['id', 'name', 'slug', 'icon_name', 'updated_at']
+        fields = ['id', 'name', 'slug', 'icon_name', 'parent', 'parent_name', 'updated_at']
         read_only_fields = ['id', 'updated_at']
+
+    def get_parent_name(self, obj):
+        return obj.parent.name if obj.parent else None
 
 
 # ── Business ───────────────────────────────────────────────────────────────────
 class BusinessSerializer(serializers.ModelSerializer):
+    tags = TagSerializer(many=True, read_only=True)
+    category_detail = CategorySerializer(source='category', read_only=True)
+    latitude = serializers.FloatField(write_only=True, required=False, allow_null=True)
+    longitude = serializers.FloatField(write_only=True, required=False, allow_null=True)
+    lat = serializers.SerializerMethodField()
+    lng = serializers.SerializerMethodField()
+
     class Meta:
         model = Business
         fields = [
-            'id', 'owner', 'category', 'name', 'description', 'address',
-            'lat', 'lng', 'google_place_id', 'onboarding_status',
-            'contact_email', 'avg_rating', 'review_count', 'metadata',
+            'id', 'category', 'category_detail', 'name', 'description', 'address', 'image_url',
+            'contact_email', 'google_place_id',
+            'phone', 'website_url', 'google_types', 'price_level',
+            'photo_references', 'business_status',
+            'onboarding_status', 'tags',
+            'latitude', 'longitude', 'lat', 'lng',
+            'avg_rating', 'review_count', 'user_rating_count', 'metadata',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'avg_rating', 'review_count', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'avg_rating', 'review_count', 'user_rating_count', 'created_at', 'updated_at']
+
+    def get_lat(self, obj):
+        return obj.location.y if obj.location else None
+
+    def get_lng(self, obj):
+        return obj.location.x if obj.location else None
+
+    def create(self, validated_data):
+        lat = validated_data.pop('latitude', None)
+        lng = validated_data.pop('longitude', None)
+        if lat is not None and lng is not None:
+            from django.contrib.gis.geos import Point
+            validated_data['location'] = Point(lng, lat, srid=4326)
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        lat = validated_data.pop('latitude', None)
+        lng = validated_data.pop('longitude', None)
+        if lat is not None and lng is not None:
+            from django.contrib.gis.geos import Point
+            validated_data['location'] = Point(lng, lat, srid=4326)
+        return super().update(instance, validated_data)
 
 
-# ── Review ─────────────────────────────────────────────────────────────────────
-class ReviewSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Review
-        fields = [
-            'id', 'business', 'user', 'rating', 'content',
-            'ai_fraud_score', 'is_visible', 'created_at', 'updated_at',
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+# ── Weighted search result ─────────────────────────────────────────────────────
+class BusinessSearchSerializer(BusinessSerializer):
+    """
+    Extends BusinessSerializer with search scoring fields.
+    - similarity: raw cosine similarity (0–1)
+    - distance_km: distance from user in kilometres (null if no user location)
+    - score: final weighted score (0–1), or null when an override sort is used
+    """
+    similarity = serializers.FloatField(read_only=True)
+    distance_km = serializers.FloatField(read_only=True, default=None)
+    score = serializers.FloatField(read_only=True, default=None)
 
-
-# ── Bookmark ───────────────────────────────────────────────────────────────────
-class BookmarkSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Bookmark
-        fields = ['id', 'user', 'business', 'created_at']
-        read_only_fields = ['id', 'created_at']
-
-
-# ── Reward ─────────────────────────────────────────────────────────────────────
-class RewardSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Reward
-        fields = [
-            'id', 'provider_business', 'trigger_business', 'title',
-            'description', 'discount_val', 'reward_type', 'expiry_date',
-            'created_at', 'updated_at',
-        ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-
-# ── UserCoupon ─────────────────────────────────────────────────────────────────
-class UserCouponSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = UserCoupon
-        fields = ['id', 'user', 'reward', 'status', 'unlocked_at', 'created_at', 'updated_at']
-        read_only_fields = ['id', 'created_at', 'updated_at']
-
-
-# ── AutomationLog ─────────────────────────────────────────────────────────────
-class AutomationLogSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = AutomationLog
-        fields = ['id', 'business', 'action_type', 'status', 'logged_at']
-        read_only_fields = ['id', 'logged_at']
+    class Meta(BusinessSerializer.Meta):
+        fields = BusinessSerializer.Meta.fields + ['similarity', 'distance_km', 'score']
