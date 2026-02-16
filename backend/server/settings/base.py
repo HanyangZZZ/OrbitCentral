@@ -20,6 +20,7 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'django.contrib.gis',
     # Third-party
     'rest_framework',
     'rest_framework.authtoken',
@@ -62,19 +63,28 @@ TEMPLATES = [
 WSGI_APPLICATION = 'server.wsgi.application'
 
 # ── Database ───────────────────────────────────────────────────────────────────
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.mysql',
-        'NAME': os.environ.get('MYSQL_DATABASE', 'fblc'),
-        'USER': os.environ.get('MYSQL_USER', 'fblc'),
-        'PASSWORD': os.environ.get('MYSQL_PASSWORD', 'fblc_password'),
-        'HOST': os.environ.get('MYSQL_HOST', '127.0.0.1'),
-        'PORT': os.environ.get('MYSQL_PORT', '3306'),
-        'OPTIONS': {
-            'charset': 'utf8mb4',
+# Supports DATABASE_URL (for Supabase / cloud PG) or individual PG_* vars.
+_database_url = os.environ.get('DATABASE_URL')
+
+if _database_url:
+    import dj_database_url
+    DATABASES = {
+        'default': dj_database_url.parse(
+            _database_url,
+            engine='django.contrib.gis.db.backends.postgis',
+        ),
+    }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.contrib.gis.db.backends.postgis',
+            'NAME': os.environ.get('PG_DATABASE', 'fblc'),
+            'USER': os.environ.get('PG_USER', 'fblc'),
+            'PASSWORD': os.environ.get('PG_PASSWORD', 'fblc_password'),
+            'HOST': os.environ.get('PG_HOST', '127.0.0.1'),
+            'PORT': os.environ.get('PG_PORT', '5432'),
         },
-    },
-}
+    }
 
 # ── Auth ───────────────────────────────────────────────────────────────────────
 AUTH_PASSWORD_VALIDATORS = [
@@ -161,3 +171,21 @@ LOGGING = {
         },
     },
 }
+
+# ── Celery (background task queue) ─────────────────────────────────────────────
+# Broker: Redis instance running in Docker (see docker-compose.yml)
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')
+# Result backend: same Redis instance, different DB
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://redis:6379/1')
+# Serialization
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+# Timezone (match Django)
+CELERY_TIMEZONE = TIME_ZONE
+# Prevent tasks from running forever
+CELERY_TASK_TIME_LIMIT = 600       # hard kill after 10 minutes
+CELERY_TASK_SOFT_TIME_LIMIT = 540  # raise SoftTimeLimitExceeded after 9 minutes
+# Worker settings
+CELERY_WORKER_PREFETCH_MULTIPLIER = 1  # fair scheduling for long-running tasks
+CELERY_WORKER_MAX_TASKS_PER_CHILD = 50  # restart worker after 50 tasks (prevent memory leaks)
