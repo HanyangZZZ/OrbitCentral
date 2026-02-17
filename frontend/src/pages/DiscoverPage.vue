@@ -1,44 +1,7 @@
 <template>
   <section class="discover-figma" :class="{ 'dropdown-open': ratingOpen || sortOpen }">
     <!-- Header — sits OUTSIDE the scaled shell, stays full-size like other pages -->
-    <div class="discover-top-bar">
-      <div class="top-bar-left">
-        <router-link to="/" class="brand-name">Orbit</router-link>
-      </div>
-      <div class="discover-search" :class="{ 'ai-on': aiEnabled }">
-        <span class="search-icon" aria-hidden="true">
-          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-            <circle cx="11" cy="11" r="6.5" stroke="#0f172a" stroke-width="2" />
-            <path d="M16.5 16.5L21 21" stroke="#0f172a" stroke-width="2" stroke-linecap="round" />
-          </svg>
-        </span>
-        <input class="search-input" type="text" placeholder="Search" aria-label="Search" />
-        <div class="ai-toggle" aria-label="Ask AI">
-          <span>Ask AI</span>
-          <button
-            class="toggle-switch"
-            type="button"
-            role="switch"
-            :aria-checked="aiEnabled"
-            @click="aiEnabled = !aiEnabled"
-          >
-            <span class="toggle-knob" aria-hidden="true"></span>
-          </button>
-        </div>
-      </div>
-      <div class="top-bar-right">
-        <router-link to="/leaderboard" class="nav-link">Leaderboard</router-link>
-        <router-link to="/discover" class="nav-link">Discover</router-link>
-        <router-link to="/settings/favorites" class="nav-link">Favorites</router-link>
-        <div class="location-chip">
-          <img src="/figma-discovery-page/location-pin.png" alt="" />
-          <span>Location</span>
-        </div>
-        <div class="profile-icon">
-          <img src="/figma-discovery-page/image_12_53x54.png" alt="" />
-        </div>
-      </div>
-    </div>
+    <TopBar :show-search="true" :show-location="true" v-model:ai-enabled="aiEnabled" />
 
     <!-- Scaled content — sidebar + main body shrink together -->
     <div
@@ -78,63 +41,23 @@
         </div>
 
         <nav class="side-nav">
-          <div class="side-item side-item-toggle">
-            <button class="side-toggle" type="button" @click="foodOpen = !foodOpen">
-              <img src="/figma-discovery-page/nav-food-drink.png" alt="" />
-              <span>Food &amp; Drink</span>
-            </button>
-          </div>
-          <div v-if="foodOpen" class="side-subitems">
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'restaurants' }" @click="activeSubcategory = 'restaurants'">Restaurants</div>
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'fast-food' }" @click="activeSubcategory = 'fast-food'">Fast Food</div>
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'sweets' }" @click="activeSubcategory = 'sweets'">Sweets</div>
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'grocery' }" @click="activeSubcategory = 'grocery'">Grocery</div>
-          </div>
-          <div class="side-item side-item-toggle">
-            <button class="side-toggle" type="button" @click="retailOpen = !retailOpen">
-              <img src="/figma-discovery-page/nav-retail.png" alt="" />
-              <span>Retail</span>
-            </button>
-          </div>
-          <div v-if="retailOpen" class="side-subitems">
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'apparel-accessories' }" @click="activeSubcategory = 'apparel-accessories'">Apparel &amp; Accessories</div>
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'retail-home' }" @click="activeSubcategory = 'retail-home'">Home</div>
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'gifts-hobbies' }" @click="activeSubcategory = 'gifts-hobbies'">Gifts &amp; Hobbies</div>
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'electronics' }" @click="activeSubcategory = 'electronics'">Electronics</div>
-          </div>
-          <div class="side-item side-item-toggle">
-            <button class="side-toggle" type="button" @click="entertainmentOpen = !entertainmentOpen">
-              <img src="/figma-discovery-page/nav-entertainment.png" alt="" />
-              <span>Entertainment</span>
-            </button>
-          </div>
-          <div v-if="entertainmentOpen" class="side-subitems">
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'arts' }" @click="activeSubcategory = 'arts'">Arts</div>
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'recreation' }" @click="activeSubcategory = 'recreation'">Recreation</div>
-          </div>
-          <div class="side-item side-item-toggle">
-            <button class="side-toggle" type="button" @click="personalOpen = !personalOpen">
-              <img src="/figma-discovery-page/nav-personal-services.png" alt="" />
-              <span>Personal Services</span>
-            </button>
-          </div>
-          <div v-if="personalOpen" class="side-subitems">
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'health' }" @click="activeSubcategory = 'health'">Health</div>
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'beauty' }" @click="activeSubcategory = 'beauty'">Beauty</div>
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'education' }" @click="activeSubcategory = 'education'">Education</div>
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'pet-care' }" @click="activeSubcategory = 'pet-care'">Pet Care</div>
-          </div>
-          <div class="side-item side-item-toggle">
-            <button class="side-toggle" type="button" @click="homeOpen = !homeOpen">
-              <img src="/figma-discovery-page/nav-home-services.png" alt="" />
-              <span>Home Services</span>
-            </button>
-          </div>
-          <div v-if="homeOpen" class="side-subitems">
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'maintenance' }" @click="activeSubcategory = 'maintenance'">Maintenance</div>
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'cleaning' }" @click="activeSubcategory = 'cleaning'">Cleaning</div>
-            <div class="side-subitem" :class="{ active: activeSubcategory === 'auto' }" @click="activeSubcategory = 'auto'">Auto</div>
-          </div>
+          <template v-for="cat in categories" :key="cat.key">
+            <div class="side-item side-item-toggle">
+              <button class="side-toggle" type="button" @click="cat.open = !cat.open">
+                <img :src="cat.icon" alt="" />
+                <span>{{ cat.label }}</span>
+              </button>
+            </div>
+            <div v-if="cat.open" class="side-subitems">
+              <div
+                v-for="sub in cat.subs"
+                :key="sub.key"
+                class="side-subitem"
+                :class="{ active: activeSubcategory === sub.key }"
+                @click="activeSubcategory = sub.key"
+              >{{ sub.label }}</div>
+            </div>
+          </template>
         </nav>
       </aside>
 
@@ -234,21 +157,12 @@
         </section>
 
         <section class="business-grid">
-          <RouterLink class="business-link" to="/business/name-of-business">
-            <div class="business-card">
-              <div class="business-image"></div>
-              <div class="business-meta">
-                <div class="business-title">Name of Business | Coupon</div>
-                <div class="business-rating">4.0 ★</div>
-                <div class="review-pill">Customer reviews with bolded words of tags</div>
-                <div class="coupon-row">
-                  <span class="coupon-pill">Coupon</span>
-                  <span class="coupon-pill">Coupon</span>
-                </div>
-              </div>
-            </div>
-          </RouterLink>
-          <RouterLink class="business-link" to="/business/name-of-business">
+          <RouterLink
+            v-for="n in 2"
+            :key="n"
+            class="business-link"
+            to="/business/name-of-business"
+          >
             <div class="business-card">
               <div class="business-image"></div>
               <div class="business-meta">
@@ -313,16 +227,50 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, reactive, onMounted } from 'vue';
 import { useRoute } from 'vue-router';
+import { TopBar } from '@/components';
+import { useResponsiveScale } from '@/composables';
 
 const route = useRoute();
+const { scale: figmaScale } = useResponsiveScale(1440);
 
-const foodOpen = ref(false);
-const retailOpen = ref(false);
-const entertainmentOpen = ref(false);
-const personalOpen = ref(false);
-const homeOpen = ref(false);
+// ── Sidebar categories (data-driven) ──
+const categories = reactive([
+  { key: 'food-drink', label: 'Food & Drink', icon: '/figma-discovery-page/nav-food-drink.png', open: false,
+    subs: [
+      { key: 'restaurants', label: 'Restaurants' },
+      { key: 'fast-food', label: 'Fast Food' },
+      { key: 'sweets', label: 'Sweets' },
+      { key: 'grocery', label: 'Grocery' },
+    ]},
+  { key: 'retail', label: 'Retail', icon: '/figma-discovery-page/nav-retail.png', open: false,
+    subs: [
+      { key: 'apparel-accessories', label: 'Apparel & Accessories' },
+      { key: 'retail-home', label: 'Home' },
+      { key: 'gifts-hobbies', label: 'Gifts & Hobbies' },
+      { key: 'electronics', label: 'Electronics' },
+    ]},
+  { key: 'entertainment', label: 'Entertainment', icon: '/figma-discovery-page/nav-entertainment.png', open: false,
+    subs: [
+      { key: 'arts', label: 'Arts' },
+      { key: 'recreation', label: 'Recreation' },
+    ]},
+  { key: 'personal-services', label: 'Personal Services', icon: '/figma-discovery-page/nav-personal-services.png', open: false,
+    subs: [
+      { key: 'health', label: 'Health' },
+      { key: 'beauty', label: 'Beauty' },
+      { key: 'education', label: 'Education' },
+      { key: 'pet-care', label: 'Pet Care' },
+    ]},
+  { key: 'home-services', label: 'Home Services', icon: '/figma-discovery-page/nav-home-services.png', open: false,
+    subs: [
+      { key: 'maintenance', label: 'Maintenance' },
+      { key: 'cleaning', label: 'Cleaning' },
+      { key: 'auto', label: 'Auto' },
+    ]},
+]);
+
 const activeSubcategory = ref('');
 const ratingOpen = ref(false);
 const ratingValue = ref(4.5);
@@ -335,7 +283,7 @@ const mapZoom = ref(1);
 const mapSurface = ref(null);
 
 // Simulated business pins on the map
-const mapPins = ref([
+const mapPins = [
   { id: 1, name: 'Blue Bottle Coffee', slug: 'name-of-business', rating: '4.5', category: 'Food & Drink', x: 35, y: 30 },
   { id: 2, name: 'Urban Outfitters', slug: 'name-of-business', rating: '4.2', category: 'Retail', x: 62, y: 25 },
   { id: 3, name: 'Sunrise Bakery', slug: 'name-of-business', rating: '4.8', category: 'Food & Drink', x: 28, y: 58 },
@@ -344,38 +292,15 @@ const mapPins = ref([
   { id: 6, name: 'Regal Cinema', slug: 'name-of-business', rating: '4.3', category: 'Entertainment', x: 55, y: 38 },
   { id: 7, name: 'Fresh Mart', slug: 'name-of-business', rating: '4.0', category: 'Food & Drink', x: 80, y: 62 },
   { id: 8, name: 'Pixel Electronics', slug: 'name-of-business', rating: '4.4', category: 'Retail', x: 20, y: 42 },
-]);
+];
 
-// ── Responsive scaling (keeps layout at 1440px, scales down for smaller viewports) ──
-const figmaScale = ref(1);
-const DESIGN_WIDTH = 1440;
-
-function updateScale() {
-  const vw = window.innerWidth;
-  figmaScale.value = vw < DESIGN_WIDTH ? vw / DESIGN_WIDTH : 1;
-}
-
+// Open sidebar category from query param
 onMounted(() => {
-  updateScale();
-  window.addEventListener('resize', updateScale);
-
-  // Open sidebar category if navigated with ?category= query param
   const cat = route.query.category;
   if (cat) {
-    const categoryMap = {
-      'food-drink': foodOpen,
-      'retail': retailOpen,
-      'entertainment': entertainmentOpen,
-      'personal-services': personalOpen,
-      'home-services': homeOpen,
-    };
-    const target = categoryMap[cat];
-    if (target) target.value = true;
+    const target = categories.find(c => c.key === cat);
+    if (target) target.open = true;
   }
-});
-
-onUnmounted(() => {
-  window.removeEventListener('resize', updateScale);
 });
 </script>
 
@@ -391,19 +316,6 @@ onUnmounted(() => {
   overflow-x: hidden;
   font-family: 'SF Pro', 'Inter', sans-serif;
   color: #0f172a;
-}
-
-.discover-top-bar {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1rem 0.75rem;
-  gap: 0.75rem;
-  position: relative;
-  z-index: 2;
-  flex-wrap: wrap;
-  box-sizing: border-box;
 }
 
 .discover-shell-wrap {
@@ -464,20 +376,6 @@ onUnmounted(() => {
 
 .view-toggle-btn svg {
   flex-shrink: 0;
-}
-
-.brand-name {
-  font-family: 'Barlow', 'SF Pro', 'Inter', sans-serif;
-  font-size: 1.125rem;
-  font-weight: 500;
-  color: #000;
-  text-decoration: none;
-  transition: font-weight 0.15s ease, text-shadow 0.15s ease;
-}
-
-.brand-name:hover {
-  font-weight: 700;
-  text-shadow: 0 1px 8px rgba(74, 112, 169, 0.3);
 }
 
 .side-nav {
@@ -543,160 +441,6 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   gap: 24px;
-}
-
-.discover-search {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 0.625rem;
-  background: #f8f8f8;
-  border-radius: 0.75rem;
-  padding: 0.625rem 1rem;
-}
-
-.discover-search.ai-on {
-  background: #efece3;
-}
-
-.discover-search .search-icon {
-  display: inline-flex;
-  width: 1.25rem;
-  height: 1.25rem;
-  flex-shrink: 0;
-}
-
-.discover-search .search-icon svg {
-  width: 100%;
-  height: 100%;
-}
-
-.discover-search .search-input {
-  flex: 1;
-  min-width: 0;
-  border: none;
-  outline: none;
-  background: transparent;
-  font-size: 0.875rem;
-  font-family: 'SF Pro', 'Inter', sans-serif;
-  font-weight: 300;
-  color: #0f172a;
-}
-
-.discover-search .search-input::placeholder {
-  color: #0f172a;
-  opacity: 0.5;
-}
-
-.discover-search.ai-on .search-input,
-.discover-search.ai-on .search-input::placeholder {
-  color: #0f172a;
-}
-
-.ai-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-family: 'SF Pro', 'Inter', sans-serif;
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: #1f2937;
-  white-space: nowrap;
-}
-
-.toggle-switch {
-  width: 2.125rem;
-  height: 1.125rem;
-  border-radius: 999px;
-  background: #d7d2c8;
-  border: none;
-  padding: 0.125rem;
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-}
-
-.discover-search.ai-on .toggle-switch {
-  background: #4a70a9;
-}
-
-.toggle-knob {
-  width: 0.875rem;
-  height: 0.875rem;
-  border-radius: 50%;
-  background: #ffffff;
-  transform: translateX(0);
-  transition: transform 0.2s ease;
-}
-
-.discover-search.ai-on .toggle-knob {
-  transform: translateX(1rem);
-}
-
-.top-bar-left {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.top-bar-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.nav-link {
-  display: none;
-  font-family: 'SF Pro', 'Inter', sans-serif;
-  font-size: 0.875rem;
-  font-weight: 300;
-  color: #000;
-  cursor: pointer;
-  text-decoration: none;
-  white-space: nowrap;
-  transition: font-weight 0.15s ease, color 0.15s ease;
-  padding-bottom: 2px;
-  border-bottom: 2px solid transparent;
-}
-
-.nav-link:hover {
-  font-weight: 600;
-  color: #4a70a9;
-  border-bottom-color: #4a70a9;
-}
-
-@media (min-width: 768px) {
-  .nav-link { display: inline; }
-}
-
-.location-chip {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-family: 'SF Pro', 'Inter', sans-serif;
-  font-size: 0.875rem;
-  font-weight: 300;
-  color: #000;
-  white-space: nowrap;
-}
-
-.location-chip img {
-  height: 1.125rem;
-  width: auto;
-  max-width: 1.125rem;
-  object-fit: contain;
-}
-
-.profile-icon {
-  cursor: pointer;
-}
-
-.profile-icon img {
-  width: 2.25rem;
-  height: 2.25rem;
-  max-width: 100%;
-  height: auto;
 }
 
 .summary-block {
@@ -1225,22 +969,5 @@ onUnmounted(() => {
 
 .map-ctrl-btn:hover {
   background: #f8f8f8;
-}
-
-@media (min-width: 768px) {
-  .discover-top-bar {
-    padding: 1.25rem 2rem 0.75rem;
-    gap: 1rem;
-    flex-wrap: nowrap;
-  }
-  .brand-name { font-size: 1.25rem; }
-}
-
-@media (min-width: 1024px) {
-  .discover-top-bar {
-    padding: 1.5rem 5.25rem 0.75rem;
-    gap: 1.5rem;
-  }
-  .brand-name { font-size: 1.375rem; }
 }
 </style>

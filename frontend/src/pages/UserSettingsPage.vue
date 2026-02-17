@@ -1,24 +1,7 @@
 <template>
   <section class="settings-page">
     <!-- Header -->
-    <div class="settings-top-bar">
-      <div class="top-bar-left">
-        <router-link to="/" class="brand-name">Orbit</router-link>
-      </div>
-      <div class="top-bar-right">
-        <router-link to="/leaderboard" class="nav-link">Leaderboard</router-link>
-        <router-link to="/discover" class="nav-link">Discover</router-link>
-        <router-link to="/settings/favorites" class="nav-link">Favorites</router-link>
-        <div class="profile-wrapper" ref="profileWrapper">
-          <div class="profile-icon" @click="profileOpen = !profileOpen">
-            <img src="/figma-discovery-page/image_12_53x54.png" alt="" />
-          </div>
-          <div v-if="profileOpen" class="profile-dropdown">
-            <router-link to="/settings" class="dropdown-item" @click="profileOpen = false">Account Settings</router-link>
-          </div>
-        </div>
-      </div>
-    </div>
+    <TopBar :show-search="false" :show-location="false" />
 
     <!-- Content -->
     <div class="settings-content">
@@ -155,10 +138,8 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-
-const profileOpen = ref(false)
-const profileWrapper = ref(null)
+import { ref, computed } from 'vue'
+import { TopBar } from '@/components'
 
 // Profile
 const displayName = ref('')
@@ -211,19 +192,6 @@ function changePassword() {
   confirmPassword.value = ''
   setTimeout(() => { passwordSaved.value = false }, 2000)
 }
-
-function handleClickOutside(e) {
-  if (profileWrapper.value && !profileWrapper.value.contains(e.target)) {
-    profileOpen.value = false
-  }
-}
-
-onMounted(() => {
-  document.addEventListener('click', handleClickOutside)
-})
-onUnmounted(() => {
-  document.removeEventListener('click', handleClickOutside)
-})
 </script>
 
 <style scoped>
@@ -236,116 +204,6 @@ onUnmounted(() => {
   background: #fff;
   font-family: 'SF Pro', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
   color: #0f172a;
-}
-
-/* ─── Top Bar ─── */
-.settings-top-bar {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 1rem 1rem 0.75rem;
-  gap: 0.75rem;
-  box-sizing: border-box;
-}
-
-.top-bar-left {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.brand-name {
-  font-family: 'Barlow', 'SF Pro', 'Inter', sans-serif;
-  font-size: 1.125rem;
-  font-weight: 500;
-  color: #000;
-  text-decoration: none;
-  transition: font-weight 0.15s ease, text-shadow 0.15s ease;
-}
-
-.brand-name:hover {
-  font-weight: 700;
-  text-shadow: 0 1px 8px rgba(74, 112, 169, 0.3);
-}
-
-.top-bar-right {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.nav-link {
-  display: none;
-  font-family: 'SF Pro', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-  font-size: 0.875rem;
-  font-weight: 300;
-  color: #000;
-  text-decoration: none;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: font-weight 0.15s ease, color 0.15s ease;
-  padding-bottom: 2px;
-  border-bottom: 2px solid transparent;
-}
-
-.nav-link:hover {
-  font-weight: 600;
-  color: #4a70a9;
-  border-bottom-color: #4a70a9;
-}
-
-@media (min-width: 768px) {
-  .nav-link { display: inline; }
-  .settings-top-bar { padding: 1.25rem 2rem 0.75rem; }
-  .brand-name { font-size: 1.25rem; }
-}
-
-@media (min-width: 1024px) {
-  .settings-top-bar { padding: 1.5rem 5.25rem 0.75rem; }
-  .brand-name { font-size: 1.375rem; }
-}
-
-.profile-wrapper {
-  position: relative;
-}
-
-.profile-icon {
-  cursor: pointer;
-}
-
-.profile-icon img {
-  width: 2.25rem;
-  height: auto;
-}
-
-.profile-dropdown {
-  position: absolute;
-  top: calc(100% + 0.625rem);
-  right: 0;
-  background: #fff;
-  border-radius: 1rem;
-  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.10);
-  padding: 0.75rem 1.25rem;
-  z-index: 100;
-  white-space: nowrap;
-  min-width: 10rem;
-}
-
-.dropdown-item {
-  display: block;
-  font-family: 'SF Pro', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 200;
-  color: #000;
-  text-decoration: none;
-  cursor: pointer;
-  transition: font-weight 0.15s ease, color 0.15s ease;
-}
-
-.dropdown-item:hover {
-  font-weight: 500;
-  color: #4a70a9;
 }
 
 /* ─── Content ─── */
