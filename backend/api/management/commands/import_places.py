@@ -1,6 +1,11 @@
 """
 Management command: import nearby businesses from Google Places API (New).
 
+Fetches all available fields (atmosphere, amenities, hours, reviews) in a
+single Nearby Search call per batch, downloads the first photo to GCS, and
+stores the public URL — the Google API is never called again for the same
+business.
+
 Usage:
     python manage.py import_places --lat=-33.8688 --lng=151.2093
     python manage.py import_places --lat=-33.8688 --lng=151.2093 --radius=3000
@@ -14,32 +19,25 @@ import requests
 from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand
 
-PLACES_ENDPOINT = 'https://places.googleapis.com/v1/places:searchNearby'
+from api.services.google_places import FIELD_MASK, PLACES_ENDPOINT
+from api.services.businesses import PRICE_LEVEL_MAP
+from api.services.images import _download_and_store_images
 
-FIELD_MASK = ','.join([
-    'places.id',
-    'places.displayName',
-    'places.formattedAddress',
-    'places.location',
-    'places.rating',
-    'places.userRatingCount',
-    'places.types',
-    'places.primaryType',
-    'places.editorialSummary',
-    'places.websiteUri',
-    'places.internationalPhoneNumber',
-    'places.photos',
-    'places.businessStatus',
-    'places.priceLevel',
-])
 
-PRICE_LEVEL_MAP = {
-    'PRICE_LEVEL_FREE': 0,
-    'PRICE_LEVEL_INEXPENSIVE': 1,
-    'PRICE_LEVEL_MODERATE': 2,
-    'PRICE_LEVEL_EXPENSIVE': 3,
-    'PRICE_LEVEL_VERY_EXPENSIVE': 4,
-}
+def _extract_reviews(place: dict) -> list[dict] | None:
+    """Extract review data from a Google Places response dict."""
+    reviews_raw = place.get('reviews', [])
+    if not reviews_raw:
+        return None
+    return [
+        {
+            'author': r.get('authorAttribution', {}).get('displayName', ''),
+            'rating': r.get('rating'),
+            'text': r.get('text', {}).get('text', ''),
+            'time': r.get('publishTime', ''),
+        }
+        for r in reviews_raw
+    ] or None
 
 
 class Command(BaseCommand):
@@ -142,6 +140,8 @@ class Command(BaseCommand):
             price_str = place.get('priceLevel', '')
             price_level = PRICE_LEVEL_MAP.get(price_str)
 
+            opening_hours = place.get('regularOpeningHours') or place.get('currentOpeningHours')
+
             defaults = {
                 'name': display_name,
                 'description': editorial or None,
@@ -155,17 +155,35 @@ class Command(BaseCommand):
                 'business_status': place.get('businessStatus', '') or None,
                 'avg_rating': place.get('rating', 0) or 0,
                 'user_rating_count': place.get('userRatingCount', 0) or 0,
+                # Extended Google Places data (fetched once, stored forever)
+                'opening_hours': opening_hours,
+                'google_maps_uri': place.get('googleMapsUri', '') or None,
+                'reviews_data': _extract_reviews(place),
+                'accessibility': place.get('accessibilityOptions') or None,
+                'payment_options': place.get('paymentOptions') or None,
+                'parking': place.get('parkingOptions') or None,
+                'dine_in': place.get('dineIn'),
+                'takeout': place.get('takeout'),
+                'delivery': place.get('delivery'),
+                'reservable': place.get('reservable'),
+                'serves_beer': place.get('servesBeer'),
+                'serves_wine': place.get('servesWine'),
+                'serves_breakfast': place.get('servesBreakfast'),
+                'serves_lunch': place.get('servesLunch'),
+                'serves_dinner': place.get('servesDinner'),
+                'serves_brunch': place.get('servesBrunch'),
+                'outdoor_seating': place.get('outdoorSeating'),
+                'live_music': place.get('liveMusic'),
+                'good_for_children': place.get('goodForChildren'),
+                'good_for_groups': place.get('goodForGroups'),
+                'allows_dogs': place.get('allowsDogs'),
+                'restroom': place.get('restroom'),
             }
 
             if category:
                 defaults['category'] = category
 
-            # Use first photo as image_url placeholder (via Places Photos API)
-            if photo_refs:
-                defaults['image_url'] = (
-                    f'https://places.googleapis.com/v1/{photo_refs[0]}/media'
-                    f'?maxHeightPx=400&key={api_key}'
-                )
+            # image_url is NOT set here — GCS pipeline handles it below
 
             biz, was_created = Business.objects.update_or_create(
                 google_place_id=google_id,
@@ -183,6 +201,12 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(
             f'Import done. Created: {created_count}, Updated: {updated_count}'
         ))
+
+        # ── Download images to GCS bucket ────────────────────────────────
+        if new_ids:
+            self.stdout.write('Downloading images to GCS...')
+            _download_and_store_images(new_ids, api_key)
+            self.stdout.write(self.style.SUCCESS('Image pipeline complete.'))
 
         # ── Optionally generate embeddings for new imports ───────────────
         if options['embed'] and new_ids:

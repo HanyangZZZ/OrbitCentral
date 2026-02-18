@@ -10,6 +10,10 @@ ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]', '0.0.0.0']
 # Allow all origins in development
 CORS_ALLOW_ALL_ORIGINS = True
 
+# Run Celery tasks synchronously in dev (no worker needed)
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_EAGER_PROPAGATES = True
+
 # Browsable API available in dev
 REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [  # noqa: F405
     'rest_framework.renderers.JSONRenderer',

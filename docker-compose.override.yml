@@ -1,0 +1,5 @@
+# Local dev overrides — expose Redis port to host
+services:
+  redis:
+    ports:
+      - "127.0.0.1:6379:6379"

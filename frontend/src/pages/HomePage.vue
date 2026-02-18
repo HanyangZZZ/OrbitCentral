@@ -162,6 +162,188 @@
       </div>
     </section>
 
+    <!-- ── Auth: Register / Login / Profile ───────────────────────────── -->
+    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
+      <h2>Auth <span style="color:#94a3b8;font-size:14px">/api/auth/*</span></h2>
+
+      <!-- Not logged in -->
+      <div v-if="!authToken">
+        <!-- Mode toggle -->
+        <div style="display:flex;gap:8px;margin-bottom:12px">
+          <button @click="authMode='login'" :style="{fontWeight: authMode==='login' ? 700 : 400, borderBottom: authMode==='login' ? '2px solid #6366f1' : 'none', background:'none', color:'#e2e8f0', padding:'4px 12px', cursor:'pointer'}">Login</button>
+          <button @click="authMode='register'" :style="{fontWeight: authMode==='register' ? 700 : 400, borderBottom: authMode==='register' ? '2px solid #6366f1' : 'none', background:'none', color:'#e2e8f0', padding:'4px 12px', cursor:'pointer'}">Register</button>
+        </div>
+
+        <!-- Login form -->
+        <div v-if="authMode==='login'" style="display:flex;gap:8px;flex-wrap:wrap">
+          <input v-model="authUser" placeholder="Username or email" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px;min-width:180px" />
+          <input v-model="authPass" type="password" placeholder="Password" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px;min-width:140px" />
+          <button @click="doLogin" :disabled="!authUser || !authPass">Login</button>
+        </div>
+
+        <!-- Register form -->
+        <div v-if="authMode==='register'" style="display:flex;flex-direction:column;gap:8px;max-width:400px">
+          <input v-model="regEmail" type="email" placeholder="Email" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+          <input v-model="regUsername" placeholder="Username" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+          <input v-model="regDisplayName" placeholder="Display name (optional)" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+          <input v-model="regPass" type="password" placeholder="Password (min 8 chars)" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+          <button @click="doRegister" :disabled="!regEmail || !regUsername || !regPass" style="align-self:flex-start">Register</button>
+        </div>
+
+        <p v-if="authErr" style="color:#f87171;font-size:13px;margin-top:8px">{{ authErr }}</p>
+        <p v-if="authOk" style="color:#4ade80;font-size:13px;margin-top:8px">{{ authOk }}</p>
+      </div>
+
+      <!-- Logged in: user profile -->
+      <div v-else>
+        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+          <span style="color:#4ade80;font-size:13px">Logged in as <b>{{ userProfile?.username || authUser }}</b></span>
+          <span style="color:#64748b;font-size:11px">(Token {{ authToken.slice(0, 8) }}...)</span>
+          <span v-if="userProfile?.email_verified" style="color:#4ade80;font-size:11px;border:1px solid rgba(74,222,128,0.3);border-radius:4px;padding:2px 6px">✓ Verified</span>
+          <span v-else style="color:#fbbf24;font-size:11px;border:1px solid rgba(251,191,36,0.3);border-radius:4px;padding:2px 6px">✉ Unverified</span>
+          <button @click="doLogout" style="font-size:12px;color:#f87171;background:none;border:1px solid rgba(248,113,113,0.3);border-radius:4px;padding:3px 8px;cursor:pointer">Logout</button>
+        </div>
+
+        <!-- Profile details -->
+        <div v-if="userProfile" style="margin-top:12px;padding:12px;background:#1e293b;border-radius:8px;font-size:13px">
+          <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;color:#94a3b8">
+            <span>Email:</span><span style="color:#e2e8f0">{{ userProfile.email }}</span>
+            <span>Display:</span><span style="color:#e2e8f0">{{ userProfile.display_name || '—' }}</span>
+            <span>Bio:</span><span style="color:#e2e8f0">{{ userProfile.bio || '—' }}</span>
+          </div>
+        </div>
+
+        <!-- Verification actions -->
+        <div v-if="!userProfile?.email_verified" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+          <button @click="doResendVerify" style="font-size:12px">Resend Verification Email</button>
+          <input v-model="verifyTokenInput" placeholder="Paste verification token" style="flex:1;min-width:200px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px;font-size:12px" />
+          <button @click="doVerifyEmail" :disabled="!verifyTokenInput" style="font-size:12px">Verify</button>
+        </div>
+
+        <p v-if="authErr" style="color:#f87171;font-size:13px;margin-top:4px">{{ authErr }}</p>
+        <p v-if="authOk" style="color:#4ade80;font-size:13px;margin-top:4px">{{ authOk }}</p>
+        <!-- Forgot / Reset Password -->
+        <div style="margin-top:16px;padding:12px;border:1px dashed #475569;border-radius:8px">
+          <h3 style="margin:0 0 8px;font-size:14px;color:#94a3b8">Forgot / Reset Password</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <input v-model="forgotEmail" type="email" placeholder="Email for password reset" style="flex:1;min-width:200px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px;font-size:12px" />
+            <button @click="doForgotPassword" :disabled="!forgotEmail" style="font-size:12px">Send Reset Email</button>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
+            <input v-model="resetTokenInput" placeholder="Paste reset token" style="flex:1;min-width:160px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px;font-size:12px" />
+            <input v-model="resetNewPassword" type="password" placeholder="New password" style="flex:1;min-width:140px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px;font-size:12px" />
+            <button @click="doResetPassword" :disabled="!resetTokenInput || !resetNewPassword" style="font-size:12px">Reset Password</button>
+          </div>
+          <p v-if="resetMsg" :style="{fontSize:'12px',marginTop:'6px',color: resetMsg.startsWith('Error') ? '#f87171' : '#4ade80'}">{{ resetMsg }}</p>
+        </div>      </div>
+    </section>
+
+    <!-- ── Reviews ────────────────────────────────────────────────────── -->
+    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
+      <h2>Reviews <span style="color:#94a3b8;font-size:14px">GET/POST /api/reviews/?business=</span></h2>
+
+      <!-- Load reviews for a business -->
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+        <input v-model.number="reviewBizId" type="number" placeholder="Business ID" style="width:120px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+        <button @click="loadReviews" :disabled="!reviewBizId">Load Reviews</button>
+      </div>
+
+      <!-- Review list -->
+      <div v-if="reviews.length" style="margin-bottom:16px">
+        <p style="font-size:12px;color:#94a3b8;margin-bottom:8px">{{ reviews.length }} review{{ reviews.length > 1 ? 's' : '' }} for business #{{ reviewBizId }}</p>
+        <div v-for="r in reviews" :key="r.id" style="padding:12px;margin-bottom:8px;background:#1e293b;border-radius:8px;border:1px solid #334155">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <span style="color:#fbbf24;font-size:14px">{{ '★'.repeat(r.rating) }}{{ '☆'.repeat(5 - r.rating) }}</span>
+              <span style="color:#e2e8f0;font-weight:600;margin-left:8px">{{ r.username }}</span>
+              <span style="color:#64748b;font-size:11px;margin-left:8px">{{ new Date(r.created_at).toLocaleDateString() }}</span>
+            </div>
+            <button v-if="authToken" @click="removeReview(r.id)" style="font-size:11px;color:#f87171;background:none;border:1px solid rgba(248,113,113,0.3);border-radius:4px;padding:2px 6px;cursor:pointer">Delete</button>
+          </div>
+          <p v-if="r.description" style="color:#cbd5e1;margin:6px 0 0;font-size:13px">{{ r.description }}</p>
+          <img v-if="r.image_url" :src="r.image_url" alt="Review photo" style="margin-top:8px;max-width:200px;max-height:150px;border-radius:6px;object-fit:cover" />
+          <!-- Vote buttons -->
+          <div v-if="authToken" style="display:flex;gap:10px;margin-top:8px">
+            <button v-for="vt in ['useful','funny','cool']" :key="vt" @click="doVoteReview(r, vt)"
+              :style="{fontSize:'11px',padding:'3px 10px',borderRadius:'999px',cursor:'pointer',
+                background: (r.user_votes||[]).includes(vt) ? 'rgba(99,102,241,0.35)' : 'rgba(99,102,241,0.08)',
+                border: (r.user_votes||[]).includes(vt) ? '1px solid #6366f1' : '1px solid rgba(99,102,241,0.2)',
+                color: (r.user_votes||[]).includes(vt) ? '#c7d2fe' : '#a5b4fc'}">
+              {{ vt === 'useful' ? '👍' : vt === 'funny' ? '😂' : '😎' }} {{ vt }}
+              <span style="margin-left:4px;color:#64748b">({{ (r.vote_counts || {})[vt] || 0 }})</span>
+            </button>
+          </div>
+        </div>
+      </div>
+      <p v-else-if="reviewsLoaded" style="color:#64748b;font-size:13px">No reviews yet for this business.</p>
+
+      <!-- Submit review form (requires auth) -->
+      <div v-if="authToken" style="padding:12px;border:1px dashed #475569;border-radius:8px;margin-top:8px">
+        <h3 style="margin:0 0 8px;font-size:14px;color:#94a3b8">Submit a Review</h3>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:12px;color:#94a3b8;white-space:nowrap">Business ID:</label>
+            <input v-model.number="newReviewBizId" type="number" placeholder="Business ID" style="width:100px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+            <label style="font-size:12px;color:#94a3b8;white-space:nowrap;margin-left:8px">Rating:</label>
+            <div style="display:flex;gap:2px">
+              <span v-for="s in 5" :key="s" @click="newReviewRating = s"
+                :style="{cursor:'pointer',fontSize:'20px',color: s <= newReviewRating ? '#fbbf24' : '#475569'}">★</span>
+            </div>
+          </div>
+          <textarea v-model="newReviewDesc" placeholder="Write your review..." rows="3" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:8px 10px;border-radius:4px;resize:vertical"></textarea>
+          <div style="display:flex;gap:8px;align-items:center">
+            <label style="font-size:12px;color:#94a3b8;cursor:pointer;padding:4px 10px;border:1px solid #475569;border-radius:4px">
+              📷 Attach Photo
+              <input type="file" accept="image/*" @change="onPhotoSelect" style="display:none" />
+            </label>
+            <span v-if="newReviewPhoto" style="font-size:11px;color:#4ade80">Photo attached ✓</span>
+            <button v-if="newReviewPhoto" @click="newReviewPhoto = null" style="font-size:11px;color:#f87171;background:none;border:none;cursor:pointer">Remove</button>
+          </div>
+          <button @click="submitReview" :disabled="!newReviewBizId || !newReviewRating || submittingReview" style="align-self:flex-start">
+            {{ submittingReview ? 'Submitting...' : 'Submit Review' }}
+          </button>
+          <p v-if="reviewSubmitErr" style="color:#f87171;font-size:12px">{{ reviewSubmitErr }}</p>
+          <p v-if="reviewSubmitOk" style="color:#4ade80;font-size:12px">{{ reviewSubmitOk }}</p>
+        </div>
+      </div>
+      <p v-else style="color:#64748b;font-size:12px;margin-top:8px">Register &amp; verify your email above to submit a review.</p>
+    </section>
+    <!-- ── Bookmarks ────────────────────────────────────────────────────── -->
+    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
+      <h2>Bookmarks <span style="color:#94a3b8;font-size:14px">/api/bookmarks/*</span></h2>
+
+      <div v-if="authToken && userProfile?.email_verified">
+        <!-- Toggle bookmark -->
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <input v-model.number="bookmarkBizId" type="number" placeholder="Business ID" style="width:120px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
+          <button @click="doToggleBookmark" :disabled="!bookmarkBizId">Toggle Bookmark</button>
+          <button @click="doCheckBookmark" :disabled="!bookmarkBizId">Check</button>
+          <button @click="loadBookmarks">Load My Bookmarks</button>
+          <button @click="loadBookmarkIds">Get Bookmark IDs</button>
+        </div>
+        <p v-if="bookmarkMsg" :style="{fontSize:'13px',marginTop:'6px',color: bookmarkMsg.startsWith('Error') ? '#f87171' : '#4ade80'}">{{ bookmarkMsg }}</p>
+
+        <!-- Bookmark IDs -->
+        <div v-if="bookmarkIdList.length" style="margin-top:8px;font-size:12px;color:#94a3b8">
+          Bookmarked business IDs: <span style="color:#e2e8f0">{{ bookmarkIdList.join(', ') }}</span>
+        </div>
+
+        <!-- Bookmark list -->
+        <div v-if="bookmarks.length" style="margin-top:10px">
+          <p style="font-size:12px;color:#94a3b8">{{ bookmarks.length }} bookmark{{ bookmarks.length > 1 ? 's' : '' }}</p>
+          <div v-for="bm in bookmarks" :key="bm.id" style="padding:8px 12px;margin-top:6px;background:#1e293b;border-radius:8px;border:1px solid #334155;display:flex;justify-content:space-between;align-items:center">
+            <div>
+              <b style="color:#e2e8f0">#{{ bm.business }}</b> <span style="color:#94a3b8">{{ bm.business_name }}</span>
+              <span v-if="bm.note" style="color:#64748b;font-size:11px;margin-left:8px">— {{ bm.note }}</span>
+              <span style="color:#475569;font-size:11px;margin-left:8px">{{ new Date(bm.created_at).toLocaleDateString() }}</span>
+            </div>
+            <button @click="doRemoveBookmark(bm.id)" style="font-size:11px;color:#f87171;background:none;border:1px solid rgba(248,113,113,0.3);border-radius:4px;padding:2px 6px;cursor:pointer">Remove</button>
+          </div>
+        </div>
+      </div>
+      <p v-else-if="authToken" style="color:#fbbf24;font-size:12px">Verify your email to use bookmarks.</p>
+      <p v-else style="color:#64748b;font-size:12px">Register &amp; verify your email to bookmark businesses.</p>
+    </section>
     <!-- ── Businesses List ────────────────────────────────────────────── -->
     <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
       <h2>GET /api/businesses/ <span style="color:#94a3b8;font-size:14px">(paginated)</span></h2>
@@ -180,7 +362,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import { getCategories, getTags, searchTags, getBusinesses, getStats, searchBusinesses } from '../api/client'
+import { getCategories, getTags, searchTags, getBusinesses, getStats, searchBusinesses, register, login, verifyEmail, getMe, resendVerify, forgotPassword, resetPassword, setAuthToken, getReviews, createReview, deleteReview, voteReview, getBookmarks, toggleBookmark, checkBookmark, deleteBookmark, getBookmarkIds } from '../api/client'
 
 const stats = ref(null)
 const categories = ref([])
@@ -207,6 +389,269 @@ const searchTagQ = ref('')
 const inlineTags = ref([])
 const tagLoading = ref(false)
 const tagCache = ref({})
+
+// ── Auth state ────────────────────────────────────────────────────────────────
+const authMode = ref('login')  // 'login' | 'register'
+const authUser = ref('')
+const authPass = ref('')
+const authToken = ref('')
+const authErr = ref('')
+const authOk = ref('')
+const userProfile = ref(null)
+// Register-specific fields
+const regEmail = ref('')
+const regUsername = ref('')
+const regDisplayName = ref('')
+const regPass = ref('')
+// Email verification
+const verifyTokenInput = ref('')
+// Password reset
+const forgotEmail = ref('')
+const resetTokenInput = ref('')
+const resetNewPassword = ref('')
+const resetMsg = ref('')
+
+const loadProfile = async () => {
+  try {
+    const res = await getMe()
+    userProfile.value = res.data
+  } catch { userProfile.value = null }
+}
+
+const doLogin = async () => {
+  authErr.value = ''; authOk.value = ''
+  try {
+    const res = await login(authUser.value, authPass.value)
+    authToken.value = res.data.token
+    setAuthToken(authToken.value)
+    userProfile.value = res.data.user || null
+    authPass.value = ''
+    authOk.value = 'Logged in!'
+  } catch (e) {
+    authErr.value = e.response?.data?.detail || e.response?.data?.non_field_errors?.[0] || 'Login failed'
+  }
+}
+
+const doRegister = async () => {
+  authErr.value = ''; authOk.value = ''
+  try {
+    const res = await register({
+      email: regEmail.value,
+      username: regUsername.value,
+      password: regPass.value,
+      display_name: regDisplayName.value || undefined,
+    })
+    authToken.value = res.data.token
+    setAuthToken(authToken.value)
+    userProfile.value = res.data.user || null
+    authOk.value = 'Registered! Check your email for a verification link.'
+    regEmail.value = ''; regUsername.value = ''; regPass.value = ''; regDisplayName.value = ''
+  } catch (e) {
+    const d = e.response?.data
+    authErr.value = d?.detail || d?.email?.[0] || d?.username?.[0] || d?.password?.[0] || JSON.stringify(d) || 'Registration failed'
+  }
+}
+
+const doVerifyEmail = async () => {
+  authErr.value = ''; authOk.value = ''
+  try {
+    await verifyEmail(verifyTokenInput.value)
+    authOk.value = 'Email verified!'
+    verifyTokenInput.value = ''
+    await loadProfile()
+  } catch (e) {
+    authErr.value = e.response?.data?.detail || 'Verification failed'
+  }
+}
+
+const doResendVerify = async () => {
+  authErr.value = ''; authOk.value = ''
+  try {
+    const res = await resendVerify()
+    authOk.value = res.data?.detail || 'Verification email sent!'
+  } catch (e) {
+    authErr.value = e.response?.data?.detail || 'Could not resend'
+  }
+}
+
+const doForgotPassword = async () => {
+  resetMsg.value = ''
+  try {
+    const res = await forgotPassword(forgotEmail.value)
+    resetMsg.value = res.data?.detail || 'If that email exists, a reset link was sent.'
+    forgotEmail.value = ''
+  } catch (e) {
+    resetMsg.value = 'Error: ' + (e.response?.data?.detail || 'Request failed')
+  }
+}
+
+const doResetPassword = async () => {
+  resetMsg.value = ''
+  try {
+    const res = await resetPassword(resetTokenInput.value, resetNewPassword.value)
+    resetMsg.value = res.data?.detail || 'Password reset! Please log in with your new password.'
+    resetTokenInput.value = ''; resetNewPassword.value = ''
+    // Force logout since all tokens are invalidated
+    doLogout()
+  } catch (e) {
+    const d = e.response?.data
+    resetMsg.value = 'Error: ' + (d?.detail || d?.new_password?.[0] || JSON.stringify(d) || 'Reset failed')
+  }
+}
+
+const doLogout = () => {
+  authToken.value = ''
+  userProfile.value = null
+  setAuthToken(null)
+  authErr.value = ''; authOk.value = ''
+}
+
+// ── Bookmarks state ───────────────────────────────────────────────────────────
+const bookmarkBizId = ref(null)
+const bookmarks = ref([])
+const bookmarkIdList = ref([])
+const bookmarkMsg = ref('')
+
+const loadBookmarks = async () => {
+  bookmarkMsg.value = ''
+  try {
+    const res = await getBookmarks()
+    bookmarks.value = res.data.results ?? res.data ?? []
+  } catch (e) {
+    bookmarkMsg.value = 'Error: ' + (e.response?.data?.detail || 'Failed to load bookmarks')
+  }
+}
+
+const loadBookmarkIds = async () => {
+  bookmarkMsg.value = ''
+  try {
+    const res = await getBookmarkIds()
+    bookmarkIdList.value = res.data.business_ids ?? []
+    bookmarkMsg.value = `${bookmarkIdList.value.length} bookmarked business(es)`
+  } catch (e) {
+    bookmarkMsg.value = 'Error: ' + (e.response?.data?.detail || 'Failed')
+  }
+}
+
+const doToggleBookmark = async () => {
+  bookmarkMsg.value = ''
+  try {
+    const res = await toggleBookmark(bookmarkBizId.value)
+    bookmarkMsg.value = res.data.status === 'added' ? 'Bookmarked!' : 'Bookmark removed.'
+    if (bookmarks.value.length) loadBookmarks()
+  } catch (e) {
+    bookmarkMsg.value = 'Error: ' + (e.response?.data?.detail || 'Toggle failed')
+  }
+}
+
+const doCheckBookmark = async () => {
+  bookmarkMsg.value = ''
+  try {
+    const res = await checkBookmark(bookmarkBizId.value)
+    bookmarkMsg.value = res.data.bookmarked ? `Business #${bookmarkBizId.value} is bookmarked ✓` : `Business #${bookmarkBizId.value} is NOT bookmarked`
+  } catch (e) {
+    bookmarkMsg.value = 'Error: ' + (e.response?.data?.detail || 'Check failed')
+  }
+}
+
+const doRemoveBookmark = async (id) => {
+  try {
+    await deleteBookmark(id)
+    bookmarks.value = bookmarks.value.filter(b => b.id !== id)
+    bookmarkMsg.value = 'Bookmark removed.'
+  } catch (e) {
+    bookmarkMsg.value = 'Error: ' + (e.response?.data?.detail || 'Delete failed')
+  }
+}
+
+// ── Reviews state ─────────────────────────────────────────────────────────────
+const reviewBizId = ref(null)
+const reviews = ref([])
+const reviewsLoaded = ref(false)
+const newReviewBizId = ref(null)
+const newReviewRating = ref(0)
+const newReviewDesc = ref('')
+const newReviewPhoto = ref(null)
+const submittingReview = ref(false)
+const reviewSubmitErr = ref('')
+const reviewSubmitOk = ref('')
+
+const loadReviews = async () => {
+  if (!reviewBizId.value) return
+  reviewsLoaded.value = false
+  try {
+    const res = await getReviews({ business: reviewBizId.value })
+    reviews.value = res.data.results ?? res.data ?? []
+    reviewsLoaded.value = true
+    // Pre-fill the submission form with the same business ID
+    newReviewBizId.value = reviewBizId.value
+  } catch (e) {
+    reviews.value = []
+    reviewsLoaded.value = true
+  }
+}
+
+const onPhotoSelect = (e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => { newReviewPhoto.value = reader.result }
+  reader.readAsDataURL(file)
+}
+
+const submitReview = async () => {
+  submittingReview.value = true
+  reviewSubmitErr.value = ''
+  reviewSubmitOk.value = ''
+  try {
+    const payload = {
+      business: newReviewBizId.value,
+      rating: newReviewRating.value,
+      description: newReviewDesc.value,
+    }
+    if (newReviewPhoto.value) payload.photo = newReviewPhoto.value
+    await createReview(payload)
+    reviewSubmitOk.value = 'Review submitted successfully!'
+    newReviewRating.value = 0
+    newReviewDesc.value = ''
+    newReviewPhoto.value = null
+    // Reload reviews if we're viewing the same business
+    if (reviewBizId.value === newReviewBizId.value) loadReviews()
+  } catch (e) {
+    reviewSubmitErr.value = e.response?.data?.detail
+      || e.response?.data?.non_field_errors?.[0]
+      || JSON.stringify(e.response?.data) || 'Submission failed'
+  } finally {
+    submittingReview.value = false
+  }
+}
+
+const removeReview = async (id) => {
+  try {
+    await deleteReview(id)
+    reviews.value = reviews.value.filter(r => r.id !== id)
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Delete failed')
+  }
+}
+
+const doVoteReview = async (review, voteType) => {
+  try {
+    const res = await voteReview(review.id, voteType)
+    // Update the review's local state optimistically
+    if (!review.vote_counts) review.vote_counts = { useful: 0, funny: 0, cool: 0 }
+    if (!review.user_votes) review.user_votes = []
+    if (res.data.status === 'added') {
+      review.vote_counts[voteType] = (review.vote_counts[voteType] || 0) + 1
+      review.user_votes.push(voteType)
+    } else {
+      review.vote_counts[voteType] = Math.max(0, (review.vote_counts[voteType] || 1) - 1)
+      review.user_votes = review.user_votes.filter(v => v !== voteType)
+    }
+  } catch (e) {
+    alert(e.response?.data?.detail || 'Vote failed')
+  }
+}
 
 const loadStats = async () => { stats.value = (await getStats()).data }
 const loadCategories = async () => { categories.value = (await getCategories()).data.results ?? [] }

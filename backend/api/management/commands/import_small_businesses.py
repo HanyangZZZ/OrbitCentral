@@ -2,6 +2,8 @@
 Bulk-import ~500 small, independent businesses around a location from Google Places.
 
 Filters out chains, malls, big-box stores, supermarkets, and franchises.
+Fetches all atmosphere/amenity/review data in a single Nearby Search call,
+downloads the first photo to GCS, and stores the public URL.
 
 Usage:
     python manage.py import_small_businesses --lat=43.6532 --lng=-79.3832
@@ -15,81 +17,9 @@ import requests
 from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand
 
-PLACES_ENDPOINT = 'https://places.googleapis.com/v1/places:searchNearby'
-
-FIELD_MASK = ','.join([
-    'places.id',
-    'places.displayName',
-    'places.formattedAddress',
-    'places.location',
-    'places.rating',
-    'places.userRatingCount',
-    'places.types',
-    'places.primaryType',
-    'places.editorialSummary',
-    'places.websiteUri',
-    'places.internationalPhoneNumber',
-    'places.photos',
-    'places.businessStatus',
-    'places.priceLevel',
-])
-
-PRICE_LEVEL_MAP = {
-    'PRICE_LEVEL_FREE': 0,
-    'PRICE_LEVEL_INEXPENSIVE': 1,
-    'PRICE_LEVEL_MODERATE': 2,
-    'PRICE_LEVEL_EXPENSIVE': 3,
-    'PRICE_LEVEL_VERY_EXPENSIVE': 4,
-}
-
-# ── Types that represent small / independent businesses ──────────────────────
-SMALL_BIZ_TYPES = [
-    'cafe',
-    'bakery',
-    'bar',
-    'restaurant',
-    'book_store',
-    'florist',
-    'hair_care',
-    'beauty_salon',
-    'spa',
-    'gym',
-    'art_gallery',
-    'clothing_store',
-    'pet_store',
-    'jewelry_store',
-    'bicycle_store',
-    'furniture_store',
-    'home_goods_store',
-    'liquor_store',
-    'meal_delivery',
-    'meal_takeaway',
-    'night_club',
-    'shoe_store',
-    'ice_cream_shop',
-    'coffee_shop',
-    'brunch_restaurant',
-    'ramen_restaurant',
-    'sushi_restaurant',
-    'pizza_restaurant',
-    'sandwich_shop',
-    'seafood_restaurant',
-    'vegetarian_restaurant',
-    'thai_restaurant',
-    'indian_restaurant',
-    'mexican_restaurant',
-    'chinese_restaurant',
-    'japanese_restaurant',
-    'korean_restaurant',
-    'vietnamese_restaurant',
-    'italian_restaurant',
-    'french_restaurant',
-    'greek_restaurant',
-    'mediterranean_restaurant',
-    'middle_eastern_restaurant',
-    'barbecue_restaurant',
-    'steak_house',
-]
+from api.services.google_places import FIELD_MASK, PLACES_ENDPOINT, SMALL_BIZ_TYPES
+from api.services.businesses import PRICE_LEVEL_MAP
+from api.services.images import _download_and_store_images
 
 # ── Types to REJECT (big-box, institutional, etc.) ───────────────────────────
 EXCLUDED_TYPES = {
@@ -299,6 +229,18 @@ class Command(BaseCommand):
                     price_str = place.get('priceLevel', '')
                     price_level = PRICE_LEVEL_MAP.get(price_str)
 
+                    opening_hours = place.get('regularOpeningHours') or place.get('currentOpeningHours')
+                    reviews_raw = place.get('reviews', [])
+                    reviews_data = [
+                        {
+                            'author': r.get('authorAttribution', {}).get('displayName', ''),
+                            'rating': r.get('rating'),
+                            'text': r.get('text', {}).get('text', ''),
+                            'time': r.get('publishTime', ''),
+                        }
+                        for r in (reviews_raw or [])
+                    ] or None
+
                     defaults = {
                         'name': display_name,
                         'description': editorial or None,
@@ -313,13 +255,32 @@ class Command(BaseCommand):
                         'avg_rating': place.get('rating', 0) or 0,
                         'user_rating_count': rating_count,
                         'onboarding_status': 'discovered',
+                        # Extended Google Places data (fetched once, stored forever)
+                        'opening_hours': opening_hours,
+                        'google_maps_uri': place.get('googleMapsUri', '') or None,
+                        'reviews_data': reviews_data,
+                        'accessibility': place.get('accessibilityOptions') or None,
+                        'payment_options': place.get('paymentOptions') or None,
+                        'parking': place.get('parkingOptions') or None,
+                        'dine_in': place.get('dineIn'),
+                        'takeout': place.get('takeout'),
+                        'delivery': place.get('delivery'),
+                        'reservable': place.get('reservable'),
+                        'serves_beer': place.get('servesBeer'),
+                        'serves_wine': place.get('servesWine'),
+                        'serves_breakfast': place.get('servesBreakfast'),
+                        'serves_lunch': place.get('servesLunch'),
+                        'serves_dinner': place.get('servesDinner'),
+                        'serves_brunch': place.get('servesBrunch'),
+                        'outdoor_seating': place.get('outdoorSeating'),
+                        'live_music': place.get('liveMusic'),
+                        'good_for_children': place.get('goodForChildren'),
+                        'good_for_groups': place.get('goodForGroups'),
+                        'allows_dogs': place.get('allowsDogs'),
+                        'restroom': place.get('restroom'),
                     }
 
-                    if photo_refs:
-                        defaults['image_url'] = (
-                            f'https://places.googleapis.com/v1/{photo_refs[0]}/media'
-                            f'?maxHeightPx=400&key={api_key}'
-                        )
+                    # image_url is NOT set here — GCS pipeline handles it below
 
                     biz, was_created = Business.objects.update_or_create(
                         google_place_id=google_id,
@@ -342,6 +303,12 @@ class Command(BaseCommand):
             f'  Skipped (type):  {skipped_type}\n'
             f'  Skipped (dup):   {skipped_dup}'
         ))
+
+        # ── Download images to GCS bucket ────────────────────────────────
+        if new_ids:
+            self.stdout.write(f'Downloading images to GCS for {len(new_ids)} businesses...')
+            _download_and_store_images(new_ids, api_key)
+            self.stdout.write(self.style.SUCCESS('Image pipeline complete.'))
 
         # ── Generate embeddings ──────────────────────────────────────────
         if options['embed'] and new_ids:
