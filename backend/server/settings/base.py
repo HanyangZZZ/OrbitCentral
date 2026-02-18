@@ -172,6 +172,21 @@ LOGGING = {
     },
 }
 
+# ── Brevo (transactional email) ────────────────────────────────────────────
+BREVO_API_KEY = os.environ.get('BREVO_API_KEY', '')
+BREVO_SENDER_EMAIL = os.environ.get('BREVO_SENDER_EMAIL', 'hanyang.zhuo1219@gmail.com')
+BREVO_SENDER_NAME = os.environ.get('BREVO_SENDER_NAME', 'Orbit')
+
+# Base URL used in verification emails (overridden per environment)
+FRONTEND_BASE_URL = os.environ.get('FRONTEND_BASE_URL', 'http://localhost:5173')
+
+# ── Google Cloud Storage (business images) ────────────────────────────────────
+GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME', 'orbit-media-prod')
+GCS_PUBLIC_URL = f'https://storage.googleapis.com/{GCS_BUCKET_NAME}'
+
+# Max businesses to import per area search (controls Google Places API costs)
+MAX_BUSINESSES_PER_IMPORT = int(os.environ.get('MAX_BUSINESSES_PER_IMPORT', 100))
+
 # ── Celery (background task queue) ─────────────────────────────────────────────
 # Broker: Redis instance running in Docker (see docker-compose.yml)
 CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://redis:6379/0')

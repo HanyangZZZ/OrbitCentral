@@ -1,9 +1,9 @@
 """
-DRF serializers — Category & Business only (other models deferred).
+Business-related serializers — Tag, Category, Business, BusinessSearch.
 """
 from rest_framework import serializers
 
-from .models import Business, Category, Tag
+from ..models import Business, Category, Tag
 
 
 # ── Tag ────────────────────────────────────────────────────────────────────────
@@ -45,12 +45,21 @@ class BusinessSerializer(serializers.ModelSerializer):
             'contact_email', 'google_place_id',
             'phone', 'website_url', 'google_types', 'price_level',
             'photo_references', 'business_status',
+            # Extended Google Places data
+            'opening_hours', 'google_maps_uri', 'reviews_data',
+            'accessibility', 'payment_options', 'parking',
+            'dine_in', 'takeout', 'delivery', 'reservable',
+            'serves_beer', 'serves_wine', 'serves_breakfast',
+            'serves_lunch', 'serves_dinner', 'serves_brunch',
+            'outdoor_seating', 'live_music',
+            'good_for_children', 'good_for_groups', 'allows_dogs', 'restroom',
+            # App fields
             'onboarding_status', 'tags',
             'latitude', 'longitude', 'lat', 'lng',
-            'avg_rating', 'review_count', 'user_rating_count', 'metadata',
+            'google_rating', 'avg_rating', 'review_count', 'user_rating_count', 'metadata',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'avg_rating', 'review_count', 'user_rating_count', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'google_rating', 'avg_rating', 'review_count', 'user_rating_count', 'created_at', 'updated_at']
 
     def get_lat(self, obj):
         return obj.location.y if obj.location else None
@@ -79,9 +88,6 @@ class BusinessSerializer(serializers.ModelSerializer):
 class BusinessSearchSerializer(BusinessSerializer):
     """
     Extends BusinessSerializer with search scoring fields.
-    - similarity: raw cosine similarity (0–1)
-    - distance_km: distance from user in kilometres (null if no user location)
-    - score: final weighted score (0–1), or null when an override sort is used
     """
     similarity = serializers.FloatField(read_only=True)
     distance_km = serializers.FloatField(read_only=True, default=None)
