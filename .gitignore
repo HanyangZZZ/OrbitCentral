@@ -19,10 +19,6 @@ backend/db.sqlite3
 backend/db.sqlite3-journal
 
 # Environment variables
-backend/.env
-.env
-.env.production
-frontend/.env.production
 
 # Database backups
 backups/
@@ -32,3 +28,4 @@ backups/
 
 # Logs
 *.log
+.vite/
