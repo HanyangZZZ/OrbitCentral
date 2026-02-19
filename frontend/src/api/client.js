@@ -5,13 +5,29 @@ const api = axios.create({
 })
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
-/** Set the auth token for all subsequent API requests. */
+const TOKEN_KEY = 'fblc_auth_token'
+
+/**
+ * Set (or clear) the auth token for all subsequent API requests.
+ * Persists to localStorage so the session survives page refreshes.
+ */
 export const setAuthToken = (token) => {
   if (token) {
+    localStorage.setItem(TOKEN_KEY, token)
     api.defaults.headers.common['Authorization'] = `Token ${token}`
   } else {
+    localStorage.removeItem(TOKEN_KEY)
     delete api.defaults.headers.common['Authorization']
   }
+}
+
+/** Return the saved token (if any) without touching the header. */
+export const getSavedToken = () => localStorage.getItem(TOKEN_KEY) || ''
+
+// Auto-restore token on module load so the very first request is authenticated
+const _saved = getSavedToken()
+if (_saved) {
+  api.defaults.headers.common['Authorization'] = `Token ${_saved}`
 }
 
 /**
@@ -111,6 +127,18 @@ export const createBusiness = (payload) => api.post('/businesses/', payload)
 export const updateBusiness = (id, payload) => api.patch(`/businesses/${id}/`, payload)
 export const deleteBusiness = (id) => api.delete(`/businesses/${id}/`)
 
+/**
+ * Get a proxied Google Places photo URL for a business.
+ * Returns a URL string (use as <img src>).  The backend 302-redirects to the real photo.
+ * @param {number} id — business id
+ * @param {Object} [opts]
+ * @param {number} [opts.idx=0]        — photo index (0 = primary)
+ * @param {number} [opts.maxHeight=400] — max pixel height
+ * @returns {string} URL
+ */
+export const getBusinessPhotoUrl = (id, { idx = 0, maxHeight = 400 } = {}) =>
+  `${api.defaults.baseURL}/businesses/${id}/photo/?idx=${idx}&maxHeight=${maxHeight}`
+
 // ── Vector Search ─────────────────────────────────────────────────────────────
 /**
  * Weighted semantic search for businesses.
@@ -181,5 +209,24 @@ export const toggleBookmark = (businessId) => api.post('/bookmarks/toggle/', { b
 export const checkBookmark = (businessId) => api.get('/bookmarks/check/', { params: { business: businessId } })
 /** Get all bookmarked business IDs. Returns { business_ids: number[] } */
 export const getBookmarkIds = () => api.get('/bookmarks/ids/')
+
+// ── Pagination helper ─────────────────────────────────────────────────────────
+/**
+ * Fetch the next page from a cursor-paginated response.
+ * Pass the `next` URL from a previous response.
+ * Works for reviews (cursor) and businesses (page number).
+ * @param {string} nextUrl — the full `next` URL from a previous response
+ * @returns {Promise} axios response
+ */
+export const getNextPage = (nextUrl) => {
+  if (!nextUrl) return Promise.reject(new Error('No next page'))
+  // nextUrl is absolute; extract path + query relative to baseURL
+  try {
+    const u = new URL(nextUrl)
+    return api.get(u.pathname + u.search)
+  } catch {
+    return api.get(nextUrl)
+  }
+}
 
 export default api

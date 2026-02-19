@@ -2,6 +2,7 @@
 Email tasks — verification and password reset via Brevo (Sendinblue).
 """
 import logging
+from html import escape as html_escape
 
 from celery import shared_task
 
@@ -53,7 +54,7 @@ def send_verification_email_task(self, user_id: int, token: str):
     )
 
     display_name = getattr(user, 'profile', None) and user.profile.display_name
-    recipient_name = display_name or user.username
+    recipient_name = html_escape(display_name or user.username)
 
     html_content = f"""
     <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">
@@ -145,7 +146,7 @@ def send_password_reset_email_task(self, user_id: int, token: str):
     )
 
     display_name = getattr(user, 'profile', None) and user.profile.display_name
-    recipient_name = display_name or user.username
+    recipient_name = html_escape(display_name or user.username)
 
     html_content = f"""
     <div style="font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px;">

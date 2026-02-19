@@ -72,7 +72,14 @@ class BookmarkViewSet(viewsets.ModelViewSet):
         exists = Bookmark.objects.filter(
             user=request.user, business_id=business_id,
         ).exists()
-        return Response({'bookmarked': exists, 'business': int(business_id)})
+        try:
+            biz_id_int = int(business_id)
+        except (ValueError, TypeError):
+            return Response(
+                {'detail': 'business must be an integer.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response({'bookmarked': exists, 'business': biz_id_int})
 
     @action(detail=False, methods=['get'], url_path='ids')
     def ids(self, request):

@@ -1,669 +1,410 @@
 <template>
-  <div style="max-width:1100px;margin:0 auto;padding:20px;font-family:system-ui;color:#e2e8f0;background:#0a1220;min-height:100vh">
-    <h1>FBLC API Demo</h1>
-    <p style="color:#94a3b8">Minimal frontend showing all available APIs. For frontend devs to reference.</p>
+<div class="api-demo">
+  <header>
+    <h1>FBLC API Reference</h1>
+    <p class="subtitle">Interactive API demo — every endpoint is callable below. Frontend devs: use <code>src/api/client.js</code> for integration.</p>
+    <nav class="toc">
+      <a href="#stats">Stats</a>
+      <a href="#categories">Categories</a>
+      <a href="#tags">Tags</a>
+      <a href="#search">Search</a>
+      <a href="#businesses">Businesses</a>
+      <a href="#auth">Auth</a>
+      <a href="#reviews">Reviews</a>
+      <a href="#bookmarks">Bookmarks</a>
+    </nav>
+  </header>
 
-    <!-- ── Stats ──────────────────────────────────────────────────────── -->
-    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
-      <h2>GET /api/businesses/stats/</h2>
-      <button @click="loadStats">Load Stats</button>
-      <pre v-if="stats" style="overflow-x:auto;font-size:12px;background:#1e293b;padding:12px;border-radius:6px">{{ JSON.stringify(stats, null, 2) }}</pre>
-    </section>
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- STATS                                                              -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <section id="stats" class="endpoint">
+    <h2>GET /api/businesses/stats/</h2>
+    <p class="desc">Database overview — totals, embeddings, top tags.</p>
+    <div class="actions"><button @click="callStats">Run</button></div>
+    <ResponseBox :data="res.stats" />
+  </section>
 
-    <!-- ── Categories ─────────────────────────────────────────────────── -->
-    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
-      <h2>GET /api/categories/</h2>
-      <button @click="loadCategories">Load Categories</button>
-      <div v-if="categories.length" style="margin-top:8px;font-size:13px">
-        <div v-for="c in categories" :key="c.id" style="padding:4px 0;border-bottom:1px solid #1e293b">
-          <b>#{{ c.id }}</b> {{ c.name }} ({{ c.slug }}) {{ c.parent_name ? '← ' + c.parent_name : '' }}
-          <span style="color:#64748b"> icon: {{ c.icon_name || '—' }}</span>
-        </div>
-      </div>
-    </section>
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- CATEGORIES                                                         -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <section id="categories" class="endpoint">
+    <h2>GET /api/categories/</h2>
+    <p class="desc">22 hierarchical categories (5 parent + 17 sub). Returned as flat list with <code>parent</code> and <code>parent_name</code>.</p>
+    <div class="actions"><button @click="callCategories">Run</button></div>
+    <ResponseBox :data="res.categories" />
+  </section>
 
-    <!-- ── Tags ───────────────────────────────────────────────────────── -->
-    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
-      <h2>GET /api/tags/ <span style="color:#94a3b8;font-size:14px">?q=&amp;min_usage=</span> &nbsp; GET /api/tags/search/ <span style="color:#94a3b8;font-size:14px">(vector)</span></h2>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px">
-        <input v-model="tagSearch" placeholder="Search tags (q=)" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-        <input v-model.number="tagMinUsage" type="number" placeholder="Min usage" style="width:100px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-        <button @click="loadTags">Search Tags</button>
-      </div>
-      <div v-if="tags.length" style="font-size:13px">
-        <span style="color:#94a3b8">{{ tagTotal }} tags found. </span>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px">
-          <span v-for="t in tags" :key="t.id"
-            @click="toggleTag(t)"
-            :style="{
-              padding:'4px 10px',borderRadius:'999px',fontSize:'12px',cursor:'pointer',
-              background: selectedTagIds.includes(t.id) ? 'rgba(99,102,241,0.4)' : 'rgba(99,102,241,0.1)',
-              border: selectedTagIds.includes(t.id) ? '1px solid #6366f1' : '1px solid rgba(99,102,241,0.25)',
-              color:'#a5b4fc'
-            }">
-            {{ t.name }} <span style="color:#64748b">({{ t.usage_count }})</span>
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- TAGS                                                               -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <section id="tags" class="endpoint">
+    <h2>GET /api/tags/ <span class="params">?q= &amp; min_usage=</span></h2>
+    <p class="desc">List tags, optionally filtered by name and minimum usage count.</p>
+    <div class="fields">
+      <input v-model="tagQ" placeholder="q (name filter)" />
+      <input v-model.number="tagMinUsage" type="number" placeholder="min_usage" />
+      <button @click="callTags">Run</button>
+    </div>
+    <TagPills :tags="tagList" :selected="selectedTagIds" @toggle="toggleTag" />
+    <ResponseBox :data="res.tags" />
+  </section>
+
+  <section class="endpoint">
+    <h2>GET /api/tags/search/ <span class="params">?q= &amp; limit= &amp; min_usage=</span></h2>
+    <p class="desc">Semantic vector search — finds related tags even if query doesn't match name. e.g. "outdoor dining" finds "patio".</p>
+    <div class="fields">
+      <input v-model="tagSearchQ" placeholder="q (semantic search)" />
+      <input v-model.number="tagSearchLimit" type="number" placeholder="limit (default 20)" />
+      <button @click="callTagSearch">Run</button>
+    </div>
+    <TagPills :tags="tagSearchList" :selected="selectedTagIds" @toggle="toggleTag" />
+    <ResponseBox :data="res.tagSearch" />
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- SEARCH                                                             -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <section id="search" class="endpoint">
+    <h2>GET /api/businesses/search/ <span class="params">?q= &amp; lat= &amp; lng= &amp; category= &amp; tag= &amp; sort= &amp; limit=</span></h2>
+    <p class="desc">AI-powered "vibe search". Score = 0.70 x similarity + 0.15 x proximity + 0.15 x rating.<br/>First search in a new area auto-imports from Google Places via Celery.</p>
+    <div class="fields">
+      <input v-model="sq" placeholder="q (required) e.g. cozy coffee" class="wide" />
+      <input v-model.number="slat" type="number" step="any" placeholder="lat" />
+      <input v-model.number="slng" type="number" step="any" placeholder="lng" />
+      <button type="button" @click="slat=43.6532;slng=-79.3832" class="small">Toronto</button>
+      <select v-model="scat">
+        <option value="">All categories</option>
+        <option v-for="c in categoryList" :key="c.id" :value="c.id">{{ c.name }}</option>
+      </select>
+      <select v-model="ssort">
+        <option value="">Weighted (default)</option>
+        <option value="distance">Distance</option>
+        <option value="rating">Rating</option>
+      </select>
+      <input v-model.number="slimit" type="number" min="1" max="50" placeholder="limit" />
+      <input v-model="stagIds" placeholder="tag IDs (optional) e.g. 1,4,29" style="width:220px" />
+      <button @click="callSearch" :disabled="!sq || searching">{{ searching ? 'Searching...' : 'Run' }}</button>
+    </div>
+    <div v-if="searchResults.length" class="results-grid">
+      <div v-for="r in searchResults" :key="r.id" class="result-card">
+        <img v-if="r.image_url || r.photo_references?.length" :src="r.image_url || photoUrl(r.id)" class="result-img" alt="" @error="$event.target.style.display='none'" />
+        <div class="result-body">
+          <strong>#{{ r.id }} {{ r.name }}</strong>
+          <span class="meta">{{ r.category_detail?.name ?? 'Uncategorized' }} · {{ r.avg_rating }}★ · {{ r.price_level != null ? '$'.repeat(r.price_level) : '—' }}</span>
+          <div v-if="r.tags?.length" class="result-tags">
+            <span v-for="t in r.tags" :key="t.id" class="pill small">{{ t.name }}</span>
+          </div>
+          <span class="meta">
+            <template v-if="r.score != null">score: {{ r.score.toFixed(3) }} · </template>
+            <template v-if="r.similarity != null">sim: {{ (r.similarity*100).toFixed(1) }}% · </template>
+            <template v-if="r.distance_km != null">{{ r.distance_km.toFixed(2) }} km</template>
           </span>
         </div>
-        <p v-if="selectedTagIds.length" style="font-size:12px;color:#fbbf24;margin-top:6px">
-          Selected tag IDs: {{ selectedTagIds.join(', ') }} — these will be applied to search
-        </p>
       </div>
-    </section>
+    </div>
+    <ResponseBox :data="res.search" />
+  </section>
 
-    <!-- ── Search ─────────────────────────────────────────────────────── -->
-    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
-      <h2>GET /api/businesses/search/ <span style="color:#94a3b8;font-size:14px">?q=&amp;lat=&amp;lng=&amp;category=&amp;tag=&amp;sort=&amp;limit=</span></h2>
-      <form @submit.prevent="runSearch" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px">
-        <input v-model="sq" placeholder="Query (q=) e.g. cozy coffee" required style="flex:2;min-width:200px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-        <input v-model.number="slat" type="number" step="any" placeholder="lat" style="width:110px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-        <input v-model.number="slng" type="number" step="any" placeholder="lng" style="width:110px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-        <select v-model="scat" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px">
-          <option value="">All categories</option>
-          <option v-for="c in categories" :key="c.id" :value="c.id">{{ c.name }}</option>
-        </select>
-        <select v-model="ssort" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px">
-          <option value="">Weighted</option>
-          <option value="distance">Distance</option>
-          <option value="rating">Rating</option>
-        </select>
-        <input v-model.number="slimit" type="number" min="1" max="50" placeholder="limit" style="width:70px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-        <button type="submit" :disabled="searching">{{ searching ? 'Searching...' : 'Search' }}</button>
-        <button type="button" @click="slat=43.6532;slng=-79.3832" style="font-size:12px">📍 Toronto</button>
-      </form>
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- BUSINESSES LIST                                                    -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <section id="businesses" class="endpoint">
+    <h2>GET /api/businesses/ <span class="params">(paginated)</span></h2>
+    <p class="desc">List all businesses. Supports <code>?category=</code>, <code>?onboarding_status=</code>, <code>?search=</code>, <code>?ordering=</code>.</p>
+    <div class="actions"><button @click="callBusinesses">Run</button></div>
+    <ResponseBox :data="res.businesses" />
+  </section>
 
-      <!-- Tag filter picker -->
-      <div style="margin-bottom:10px;padding:10px;background:#1e293b;border-radius:6px">
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px">
-          <span style="font-size:12px;color:#94a3b8;white-space:nowrap">Filter by tags <span style="color:#6366f1">(vector search)</span>:</span>
-          <input v-model="searchTagQ" @input="searchTagsInline" placeholder="Semantic search e.g. 'outdoor dining', 'live music'..." style="flex:1;background:#0f172a;border:1px solid #475569;color:#e2e8f0;padding:5px 10px;border-radius:4px;font-size:12px" />
-          <button v-if="selectedTagIds.length" @click="selectedTagIds=[]" style="font-size:11px;color:#f87171;background:none;border:1px solid rgba(248,113,113,0.3);border-radius:4px;padding:3px 8px;cursor:pointer">Clear all</button>
-        </div>
-        <!-- Selected tags -->
-        <div v-if="selectedTagIds.length" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:6px">
-          <span v-for="tid in selectedTagIds" :key="'sel-'+tid" @click="removeTag(tid)"
-            style="display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:999px;font-size:11px;cursor:pointer;background:rgba(99,102,241,0.35);border:1px solid #6366f1;color:#c7d2fe">
-            {{ tagNameById(tid) }} ✕
-          </span>
-          <span style="font-size:10px;color:#fbbf24;align-self:center;margin-left:4px">AND filter ({{ selectedTagIds.length }})</span>
-        </div>
-        <!-- Inline search results -->
-        <div v-if="inlineTags.length" style="display:flex;flex-wrap:wrap;gap:4px">
-          <span v-for="t in inlineTags" :key="'it-'+t.id" @click="addTag(t)"
-            :style="{
-              padding:'3px 9px',borderRadius:'999px',fontSize:'11px',cursor:'pointer',
-              background: selectedTagIds.includes(t.id) ? 'rgba(99,102,241,0.35)' : 'rgba(99,102,241,0.08)',
-              border: selectedTagIds.includes(t.id) ? '1px solid #6366f1' : '1px solid rgba(99,102,241,0.2)',
-              color: selectedTagIds.includes(t.id) ? '#c7d2fe' : '#a5b4fc',
-              opacity: selectedTagIds.includes(t.id) ? 0.5 : 1
-            }">
-            {{ t.name }} <span style="color:#64748b">({{ t.usage_count }}<span v-if="t.similarity"> · {{ (t.similarity*100).toFixed(0) }}%</span>)</span>
-          </span>
-        </div>
-        <p v-if="searchTagQ && !inlineTags.length && !tagLoading" style="font-size:11px;color:#64748b;margin:4px 0 0">No tags found</p>
-      </div>
+  <section class="endpoint">
+    <h2>GET /api/businesses/:id/</h2>
+    <p class="desc">Full business detail with all Google Places data, tags, opening hours, etc.</p>
+    <div class="fields">
+      <input v-model.number="bizDetailId" type="number" placeholder="Business ID" />
+      <button @click="callBusinessDetail" :disabled="!bizDetailId">Run</button>
+    </div>
+    <ResponseBox :data="res.businessDetail" />
+  </section>
 
-      <p v-if="searchTime" style="font-size:12px;color:#94a3b8">{{ searchResults.length }} results in {{ searchTime }}ms</p>
-      <p v-if="searchErr" style="color:#f87171;font-size:13px">{{ searchErr }}</p>
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- AUTH                                                               -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <section id="auth" class="endpoint">
+    <h2>Auth <span class="params">/api/auth/*</span></h2>
+    <p class="desc">Token-based auth. Register -> verify email -> login. Token goes in <code>Authorization: Token xxx</code> header.</p>
 
-      <!-- Results table showing ALL fields -->
-      <div v-if="searchResults.length" style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:11px;margin-top:8px">
-          <thead>
-            <tr style="border-bottom:1px solid #334155;color:#94a3b8;text-align:left">
-              <th style="padding:6px">#</th>
-              <th style="padding:6px">ID</th>
-              <th style="padding:6px">Name</th>
-              <th style="padding:6px">Category</th>
-              <th style="padding:6px">Tags</th>
-              <th style="padding:6px">Rating</th>
-              <th style="padding:6px">Reviews</th>
-              <th style="padding:6px">Price</th>
-              <th style="padding:6px">Similarity</th>
-              <th style="padding:6px">Distance</th>
-              <th style="padding:6px">Score</th>
-              <th style="padding:6px">Phone</th>
-              <th style="padding:6px">Website</th>
-              <th style="padding:6px">Address</th>
-              <th style="padding:6px">Status</th>
-              <th style="padding:6px">Lat/Lng</th>
-              <th style="padding:6px">Google ID</th>
-              <th style="padding:6px">Description</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="(r, i) in searchResults" :key="r.id" style="border-bottom:1px solid #1e293b">
-              <td style="padding:6px">{{ i+1 }}</td>
-              <td style="padding:6px">{{ r.id }}</td>
-              <td style="padding:6px;white-space:nowrap"><b>{{ r.name }}</b></td>
-              <td style="padding:6px;white-space:nowrap">{{ r.category_detail?.name || '—' }} <span style="color:#64748b">{{ r.category_detail?.parent_name ? '(' + r.category_detail.parent_name + ')' : '' }}</span></td>
-              <td style="padding:6px"><span v-for="t in r.tags" :key="t.id" style="display:inline-block;background:rgba(56,189,248,0.1);border:1px solid rgba(56,189,248,0.2);border-radius:999px;padding:1px 6px;margin:1px 2px;font-size:10px;color:#7dd3fc">{{ t.name }}</span></td>
-              <td style="padding:6px">{{ r.avg_rating ?? '—' }}★</td>
-              <td style="padding:6px">{{ r.user_rating_count ?? r.review_count ?? 0 }}</td>
-              <td style="padding:6px">{{ r.price_level != null ? '$'.repeat(r.price_level) : '—' }}</td>
-              <td style="padding:6px">{{ r.similarity != null ? (r.similarity*100).toFixed(1)+'%' : '—' }}</td>
-              <td style="padding:6px">{{ r.distance_km != null ? r.distance_km.toFixed(2)+' km' : '—' }}</td>
-              <td style="padding:6px">{{ r.score != null ? r.score.toFixed(3) : '—' }}</td>
-              <td style="padding:6px;white-space:nowrap">{{ r.phone || '—' }}</td>
-              <td style="padding:6px"><a v-if="r.website_url" :href="r.website_url" target="_blank" style="color:#38bdf8;font-size:10px">link</a><span v-else>—</span></td>
-              <td style="padding:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis">{{ r.address || '—' }}</td>
-              <td style="padding:6px;white-space:nowrap">{{ r.business_status || r.onboarding_status || '—' }}</td>
-              <td style="padding:6px;font-size:10px;color:#64748b">{{ r.lat?.toFixed(4) }}, {{ r.lng?.toFixed(4) }}</td>
-              <td style="padding:6px;font-size:9px;color:#64748b;max-width:80px;overflow:hidden;text-overflow:ellipsis">{{ r.google_place_id || '—' }}</td>
-              <td style="padding:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;color:#94a3b8">{{ r.description || '—' }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+    <div v-if="authToken" class="auth-status">
+      Logged in as <strong>{{ userProfile?.username }}</strong>
+      <span class="badge" :class="userProfile?.email_verified ? 'ok' : 'warn'">{{ userProfile?.email_verified ? 'verified' : 'unverified' }}</span>
+      <code class="token">Token {{ authToken.slice(0, 12) }}...</code>
+      <button @click="doLogout" class="small danger">Logout</button>
+    </div>
 
-      <!-- Raw JSON toggle -->
-      <div v-if="searchResults.length" style="margin-top:8px">
-        <button @click="showRaw=!showRaw" style="font-size:11px">{{ showRaw ? 'Hide' : 'Show' }} Raw JSON</button>
-        <pre v-if="showRaw" style="font-size:10px;background:#1e293b;padding:12px;border-radius:6px;max-height:400px;overflow:auto">{{ JSON.stringify(searchResults, null, 2) }}</pre>
-      </div>
-    </section>
+    <!-- Register -->
+    <h3>POST /api/auth/register/</h3>
+    <div class="fields">
+      <input v-model="regEmail" type="email" placeholder="email" />
+      <input v-model="regUsername" placeholder="username" />
+      <input v-model="regPass" type="password" placeholder="password (min 8)" />
+      <input v-model="regDisplayName" placeholder="display_name (optional)" />
+      <button @click="doRegister">Run</button>
+    </div>
+    <ResponseBox :data="res.register" />
 
-    <!-- ── Auth: Register / Login / Profile ───────────────────────────── -->
-    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
-      <h2>Auth <span style="color:#94a3b8;font-size:14px">/api/auth/*</span></h2>
+    <!-- Login -->
+    <h3>POST /api/auth/login/</h3>
+    <div class="fields">
+      <input v-model="loginUser" placeholder="username or email" />
+      <input v-model="loginPass" type="password" placeholder="password" />
+      <button @click="doLogin">Run</button>
+    </div>
+    <ResponseBox :data="res.login" />
 
-      <!-- Not logged in -->
-      <div v-if="!authToken">
-        <!-- Mode toggle -->
-        <div style="display:flex;gap:8px;margin-bottom:12px">
-          <button @click="authMode='login'" :style="{fontWeight: authMode==='login' ? 700 : 400, borderBottom: authMode==='login' ? '2px solid #6366f1' : 'none', background:'none', color:'#e2e8f0', padding:'4px 12px', cursor:'pointer'}">Login</button>
-          <button @click="authMode='register'" :style="{fontWeight: authMode==='register' ? 700 : 400, borderBottom: authMode==='register' ? '2px solid #6366f1' : 'none', background:'none', color:'#e2e8f0', padding:'4px 12px', cursor:'pointer'}">Register</button>
-        </div>
+    <!-- Me -->
+    <h3>GET /api/auth/me/ <span class="params">(auth required)</span></h3>
+    <div class="actions"><button @click="callMe">Run</button></div>
+    <ResponseBox :data="res.me" />
 
-        <!-- Login form -->
-        <div v-if="authMode==='login'" style="display:flex;gap:8px;flex-wrap:wrap">
-          <input v-model="authUser" placeholder="Username or email" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px;min-width:180px" />
-          <input v-model="authPass" type="password" placeholder="Password" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px;min-width:140px" />
-          <button @click="doLogin" :disabled="!authUser || !authPass">Login</button>
-        </div>
+    <!-- Verify Email -->
+    <h3>POST /api/auth/verify-email/</h3>
+    <div class="fields">
+      <input v-model="verifyToken" placeholder="token from email" class="wide" />
+      <button @click="doVerifyEmail">Run</button>
+    </div>
+    <ResponseBox :data="res.verifyEmail" />
 
-        <!-- Register form -->
-        <div v-if="authMode==='register'" style="display:flex;flex-direction:column;gap:8px;max-width:400px">
-          <input v-model="regEmail" type="email" placeholder="Email" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-          <input v-model="regUsername" placeholder="Username" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-          <input v-model="regDisplayName" placeholder="Display name (optional)" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-          <input v-model="regPass" type="password" placeholder="Password (min 8 chars)" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-          <button @click="doRegister" :disabled="!regEmail || !regUsername || !regPass" style="align-self:flex-start">Register</button>
-        </div>
+    <!-- Resend Verify -->
+    <h3>POST /api/auth/resend-verify/ <span class="params">(auth required)</span></h3>
+    <div class="actions"><button @click="doResendVerify">Run</button></div>
+    <ResponseBox :data="res.resendVerify" />
 
-        <p v-if="authErr" style="color:#f87171;font-size:13px;margin-top:8px">{{ authErr }}</p>
-        <p v-if="authOk" style="color:#4ade80;font-size:13px;margin-top:8px">{{ authOk }}</p>
-      </div>
+    <!-- Forgot Password -->
+    <h3>POST /api/auth/forgot-password/</h3>
+    <div class="fields">
+      <input v-model="forgotEmail" type="email" placeholder="email" />
+      <button @click="doForgotPw">Run</button>
+    </div>
+    <ResponseBox :data="res.forgotPw" />
 
-      <!-- Logged in: user profile -->
-      <div v-else>
-        <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-          <span style="color:#4ade80;font-size:13px">Logged in as <b>{{ userProfile?.username || authUser }}</b></span>
-          <span style="color:#64748b;font-size:11px">(Token {{ authToken.slice(0, 8) }}...)</span>
-          <span v-if="userProfile?.email_verified" style="color:#4ade80;font-size:11px;border:1px solid rgba(74,222,128,0.3);border-radius:4px;padding:2px 6px">✓ Verified</span>
-          <span v-else style="color:#fbbf24;font-size:11px;border:1px solid rgba(251,191,36,0.3);border-radius:4px;padding:2px 6px">✉ Unverified</span>
-          <button @click="doLogout" style="font-size:12px;color:#f87171;background:none;border:1px solid rgba(248,113,113,0.3);border-radius:4px;padding:3px 8px;cursor:pointer">Logout</button>
-        </div>
+    <!-- Reset Password -->
+    <h3>POST /api/auth/reset-password/</h3>
+    <div class="fields">
+      <input v-model="resetToken" placeholder="reset token" />
+      <input v-model="resetNewPw" type="password" placeholder="new password" />
+      <button @click="doResetPw">Run</button>
+    </div>
+    <ResponseBox :data="res.resetPw" />
 
-        <!-- Profile details -->
-        <div v-if="userProfile" style="margin-top:12px;padding:12px;background:#1e293b;border-radius:8px;font-size:13px">
-          <div style="display:grid;grid-template-columns:auto 1fr;gap:4px 12px;color:#94a3b8">
-            <span>Email:</span><span style="color:#e2e8f0">{{ userProfile.email }}</span>
-            <span>Display:</span><span style="color:#e2e8f0">{{ userProfile.display_name || '—' }}</span>
-            <span>Bio:</span><span style="color:#e2e8f0">{{ userProfile.bio || '—' }}</span>
-          </div>
-        </div>
+    <!-- Logout -->
+    <h3>POST /api/auth/logout/ <span class="params">(auth required)</span></h3>
+    <p class="desc">Deletes the server-side token. Called automatically by the Logout button above.</p>
+  </section>
 
-        <!-- Verification actions -->
-        <div v-if="!userProfile?.email_verified" style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-          <button @click="doResendVerify" style="font-size:12px">Resend Verification Email</button>
-          <input v-model="verifyTokenInput" placeholder="Paste verification token" style="flex:1;min-width:200px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px;font-size:12px" />
-          <button @click="doVerifyEmail" :disabled="!verifyTokenInput" style="font-size:12px">Verify</button>
-        </div>
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- REVIEWS                                                            -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <section id="reviews" class="endpoint">
+    <h2>Reviews <span class="params">/api/reviews/*</span></h2>
+    <p class="desc">CRUD + helpfulness votes. Auth + verified email required for write operations.</p>
 
-        <p v-if="authErr" style="color:#f87171;font-size:13px;margin-top:4px">{{ authErr }}</p>
-        <p v-if="authOk" style="color:#4ade80;font-size:13px;margin-top:4px">{{ authOk }}</p>
-        <!-- Forgot / Reset Password -->
-        <div style="margin-top:16px;padding:12px;border:1px dashed #475569;border-radius:8px">
-          <h3 style="margin:0 0 8px;font-size:14px;color:#94a3b8">Forgot / Reset Password</h3>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-            <input v-model="forgotEmail" type="email" placeholder="Email for password reset" style="flex:1;min-width:200px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px;font-size:12px" />
-            <button @click="doForgotPassword" :disabled="!forgotEmail" style="font-size:12px">Send Reset Email</button>
-          </div>
-          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:8px">
-            <input v-model="resetTokenInput" placeholder="Paste reset token" style="flex:1;min-width:160px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px;font-size:12px" />
-            <input v-model="resetNewPassword" type="password" placeholder="New password" style="flex:1;min-width:140px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px;font-size:12px" />
-            <button @click="doResetPassword" :disabled="!resetTokenInput || !resetNewPassword" style="font-size:12px">Reset Password</button>
-          </div>
-          <p v-if="resetMsg" :style="{fontSize:'12px',marginTop:'6px',color: resetMsg.startsWith('Error') ? '#f87171' : '#4ade80'}">{{ resetMsg }}</p>
-        </div>      </div>
-    </section>
+    <h3>GET /api/reviews/ <span class="params">?business= &amp; user= &amp; rating=</span></h3>
+    <div class="fields">
+      <input v-model.number="reviewBizId" type="number" placeholder="business (ID)" />
+      <button @click="callReviews">Run</button>
+    </div>
+    <ResponseBox :data="res.reviews" />
 
-    <!-- ── Reviews ────────────────────────────────────────────────────── -->
-    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
-      <h2>Reviews <span style="color:#94a3b8;font-size:14px">GET/POST /api/reviews/?business=</span></h2>
+    <h3>POST /api/reviews/ <span class="params">(auth + verified)</span></h3>
+    <p class="desc">Submit a review. Optional <code>photo</code> field accepts base64-encoded image -> stored in GCS.</p>
+    <div class="fields">
+      <input v-model.number="newReviewBiz" type="number" placeholder="business (ID)" />
+      <select v-model.number="newReviewRating">
+        <option :value="0" disabled>rating</option>
+        <option v-for="n in 5" :key="n" :value="n">{{ n }} star</option>
+      </select>
+      <input v-model="newReviewDesc" placeholder="description (optional)" class="wide" />
+      <label class="file-label">
+        Photo
+        <input type="file" accept="image/*" @change="onReviewPhoto" hidden />
+      </label>
+      <span v-if="newReviewPhoto" class="note">photo attached</span>
+      <button @click="doCreateReview">Run</button>
+    </div>
+    <ResponseBox :data="res.createReview" />
 
-      <!-- Load reviews for a business -->
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
-        <input v-model.number="reviewBizId" type="number" placeholder="Business ID" style="width:120px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-        <button @click="loadReviews" :disabled="!reviewBizId">Load Reviews</button>
-      </div>
+    <h3>DELETE /api/reviews/:id/ <span class="params">(owner only)</span></h3>
+    <div class="fields">
+      <input v-model.number="deleteReviewId" type="number" placeholder="review ID" />
+      <button @click="doDeleteReview">Run</button>
+    </div>
+    <ResponseBox :data="res.deleteReview" />
 
-      <!-- Review list -->
-      <div v-if="reviews.length" style="margin-bottom:16px">
-        <p style="font-size:12px;color:#94a3b8;margin-bottom:8px">{{ reviews.length }} review{{ reviews.length > 1 ? 's' : '' }} for business #{{ reviewBizId }}</p>
-        <div v-for="r in reviews" :key="r.id" style="padding:12px;margin-bottom:8px;background:#1e293b;border-radius:8px;border:1px solid #334155">
-          <div style="display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <span style="color:#fbbf24;font-size:14px">{{ '★'.repeat(r.rating) }}{{ '☆'.repeat(5 - r.rating) }}</span>
-              <span style="color:#e2e8f0;font-weight:600;margin-left:8px">{{ r.username }}</span>
-              <span style="color:#64748b;font-size:11px;margin-left:8px">{{ new Date(r.created_at).toLocaleDateString() }}</span>
-            </div>
-            <button v-if="authToken" @click="removeReview(r.id)" style="font-size:11px;color:#f87171;background:none;border:1px solid rgba(248,113,113,0.3);border-radius:4px;padding:2px 6px;cursor:pointer">Delete</button>
-          </div>
-          <p v-if="r.description" style="color:#cbd5e1;margin:6px 0 0;font-size:13px">{{ r.description }}</p>
-          <img v-if="r.image_url" :src="r.image_url" alt="Review photo" style="margin-top:8px;max-width:200px;max-height:150px;border-radius:6px;object-fit:cover" />
-          <!-- Vote buttons -->
-          <div v-if="authToken" style="display:flex;gap:10px;margin-top:8px">
-            <button v-for="vt in ['useful','funny','cool']" :key="vt" @click="doVoteReview(r, vt)"
-              :style="{fontSize:'11px',padding:'3px 10px',borderRadius:'999px',cursor:'pointer',
-                background: (r.user_votes||[]).includes(vt) ? 'rgba(99,102,241,0.35)' : 'rgba(99,102,241,0.08)',
-                border: (r.user_votes||[]).includes(vt) ? '1px solid #6366f1' : '1px solid rgba(99,102,241,0.2)',
-                color: (r.user_votes||[]).includes(vt) ? '#c7d2fe' : '#a5b4fc'}">
-              {{ vt === 'useful' ? '👍' : vt === 'funny' ? '😂' : '😎' }} {{ vt }}
-              <span style="margin-left:4px;color:#64748b">({{ (r.vote_counts || {})[vt] || 0 }})</span>
-            </button>
-          </div>
-        </div>
-      </div>
-      <p v-else-if="reviewsLoaded" style="color:#64748b;font-size:13px">No reviews yet for this business.</p>
+    <h3>POST /api/reviews/:id/vote/ <span class="params">(auth + verified)</span></h3>
+    <p class="desc">Toggle helpfulness vote. Types: <code>useful</code>, <code>funny</code>, <code>cool</code>.</p>
+    <div class="fields">
+      <input v-model.number="voteReviewId" type="number" placeholder="review ID" />
+      <select v-model="voteType">
+        <option value="useful">useful</option>
+        <option value="funny">funny</option>
+        <option value="cool">cool</option>
+      </select>
+      <button @click="doVoteReview">Run</button>
+    </div>
+    <ResponseBox :data="res.voteReview" />
+  </section>
 
-      <!-- Submit review form (requires auth) -->
-      <div v-if="authToken" style="padding:12px;border:1px dashed #475569;border-radius:8px;margin-top:8px">
-        <h3 style="margin:0 0 8px;font-size:14px;color:#94a3b8">Submit a Review</h3>
-        <div style="display:flex;flex-direction:column;gap:8px">
-          <div style="display:flex;gap:8px;align-items:center">
-            <label style="font-size:12px;color:#94a3b8;white-space:nowrap">Business ID:</label>
-            <input v-model.number="newReviewBizId" type="number" placeholder="Business ID" style="width:100px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-            <label style="font-size:12px;color:#94a3b8;white-space:nowrap;margin-left:8px">Rating:</label>
-            <div style="display:flex;gap:2px">
-              <span v-for="s in 5" :key="s" @click="newReviewRating = s"
-                :style="{cursor:'pointer',fontSize:'20px',color: s <= newReviewRating ? '#fbbf24' : '#475569'}">★</span>
-            </div>
-          </div>
-          <textarea v-model="newReviewDesc" placeholder="Write your review..." rows="3" style="background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:8px 10px;border-radius:4px;resize:vertical"></textarea>
-          <div style="display:flex;gap:8px;align-items:center">
-            <label style="font-size:12px;color:#94a3b8;cursor:pointer;padding:4px 10px;border:1px solid #475569;border-radius:4px">
-              📷 Attach Photo
-              <input type="file" accept="image/*" @change="onPhotoSelect" style="display:none" />
-            </label>
-            <span v-if="newReviewPhoto" style="font-size:11px;color:#4ade80">Photo attached ✓</span>
-            <button v-if="newReviewPhoto" @click="newReviewPhoto = null" style="font-size:11px;color:#f87171;background:none;border:none;cursor:pointer">Remove</button>
-          </div>
-          <button @click="submitReview" :disabled="!newReviewBizId || !newReviewRating || submittingReview" style="align-self:flex-start">
-            {{ submittingReview ? 'Submitting...' : 'Submit Review' }}
-          </button>
-          <p v-if="reviewSubmitErr" style="color:#f87171;font-size:12px">{{ reviewSubmitErr }}</p>
-          <p v-if="reviewSubmitOk" style="color:#4ade80;font-size:12px">{{ reviewSubmitOk }}</p>
-        </div>
-      </div>
-      <p v-else style="color:#64748b;font-size:12px;margin-top:8px">Register &amp; verify your email above to submit a review.</p>
-    </section>
-    <!-- ── Bookmarks ────────────────────────────────────────────────────── -->
-    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
-      <h2>Bookmarks <span style="color:#94a3b8;font-size:14px">/api/bookmarks/*</span></h2>
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- BOOKMARKS                                                          -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <section id="bookmarks" class="endpoint">
+    <h2>Bookmarks <span class="params">/api/bookmarks/*</span></h2>
+    <p class="desc">Save businesses. Auth + verified email required.</p>
 
-      <div v-if="authToken && userProfile?.email_verified">
-        <!-- Toggle bookmark -->
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <input v-model.number="bookmarkBizId" type="number" placeholder="Business ID" style="width:120px;background:#1e293b;border:1px solid #475569;color:#e2e8f0;padding:6px 10px;border-radius:4px" />
-          <button @click="doToggleBookmark" :disabled="!bookmarkBizId">Toggle Bookmark</button>
-          <button @click="doCheckBookmark" :disabled="!bookmarkBizId">Check</button>
-          <button @click="loadBookmarks">Load My Bookmarks</button>
-          <button @click="loadBookmarkIds">Get Bookmark IDs</button>
-        </div>
-        <p v-if="bookmarkMsg" :style="{fontSize:'13px',marginTop:'6px',color: bookmarkMsg.startsWith('Error') ? '#f87171' : '#4ade80'}">{{ bookmarkMsg }}</p>
+    <h3>GET /api/bookmarks/ <span class="params">(auth + verified)</span></h3>
+    <div class="actions"><button @click="callBookmarks">Run</button></div>
+    <ResponseBox :data="res.bookmarks" />
 
-        <!-- Bookmark IDs -->
-        <div v-if="bookmarkIdList.length" style="margin-top:8px;font-size:12px;color:#94a3b8">
-          Bookmarked business IDs: <span style="color:#e2e8f0">{{ bookmarkIdList.join(', ') }}</span>
-        </div>
+    <h3>GET /api/bookmarks/ids/ <span class="params">(auth + verified)</span></h3>
+    <p class="desc">Returns just the business IDs the user has bookmarked — for quick "is this bookmarked?" checks.</p>
+    <div class="actions"><button @click="callBookmarkIds">Run</button></div>
+    <ResponseBox :data="res.bookmarkIds" />
 
-        <!-- Bookmark list -->
-        <div v-if="bookmarks.length" style="margin-top:10px">
-          <p style="font-size:12px;color:#94a3b8">{{ bookmarks.length }} bookmark{{ bookmarks.length > 1 ? 's' : '' }}</p>
-          <div v-for="bm in bookmarks" :key="bm.id" style="padding:8px 12px;margin-top:6px;background:#1e293b;border-radius:8px;border:1px solid #334155;display:flex;justify-content:space-between;align-items:center">
-            <div>
-              <b style="color:#e2e8f0">#{{ bm.business }}</b> <span style="color:#94a3b8">{{ bm.business_name }}</span>
-              <span v-if="bm.note" style="color:#64748b;font-size:11px;margin-left:8px">— {{ bm.note }}</span>
-              <span style="color:#475569;font-size:11px;margin-left:8px">{{ new Date(bm.created_at).toLocaleDateString() }}</span>
-            </div>
-            <button @click="doRemoveBookmark(bm.id)" style="font-size:11px;color:#f87171;background:none;border:1px solid rgba(248,113,113,0.3);border-radius:4px;padding:2px 6px;cursor:pointer">Remove</button>
-          </div>
-        </div>
-      </div>
-      <p v-else-if="authToken" style="color:#fbbf24;font-size:12px">Verify your email to use bookmarks.</p>
-      <p v-else style="color:#64748b;font-size:12px">Register &amp; verify your email to bookmark businesses.</p>
-    </section>
-    <!-- ── Businesses List ────────────────────────────────────────────── -->
-    <section style="margin:24px 0;padding:16px;border:1px solid #334155;border-radius:8px">
-      <h2>GET /api/businesses/ <span style="color:#94a3b8;font-size:14px">(paginated)</span></h2>
-      <button @click="loadBusinesses">Load Businesses</button>
-      <p v-if="businesses.length" style="font-size:12px;color:#94a3b8">Showing {{ businesses.length }} of {{ bizTotal }}</p>
-      <div v-if="businesses.length" style="max-height:300px;overflow-y:auto;font-size:12px;margin-top:8px">
-        <div v-for="b in businesses" :key="b.id" style="padding:4px 0;border-bottom:1px solid #1e293b">
-          <b>#{{ b.id }}</b> {{ b.name }}
-          <span style="color:#64748b"> · {{ b.avg_rating }}★ ({{ b.user_rating_count }}) · {{ b.category_detail?.name || '—' }} · {{ b.address || '—' }}</span>
-          <span v-if="b.phone" style="color:#475569"> · {{ b.phone }}</span>
-        </div>
-      </div>
-    </section>
-  </div>
+    <h3>POST /api/bookmarks/toggle/ <span class="params">(auth + verified)</span></h3>
+    <p class="desc">Add or remove a bookmark in one call. Returns <code>{ status: "added" | "removed" }</code>.</p>
+    <div class="fields">
+      <input v-model.number="toggleBizId" type="number" placeholder="business (ID)" />
+      <button @click="doToggleBookmark">Run</button>
+    </div>
+    <ResponseBox :data="res.toggleBookmark" />
+
+    <h3>GET /api/bookmarks/check/ <span class="params">?business= (auth + verified)</span></h3>
+    <div class="fields">
+      <input v-model.number="checkBizId" type="number" placeholder="business (ID)" />
+      <button @click="doCheckBookmark">Run</button>
+    </div>
+    <ResponseBox :data="res.checkBookmark" />
+
+    <h3>DELETE /api/bookmarks/:id/ <span class="params">(auth + verified)</span></h3>
+    <div class="fields">
+      <input v-model.number="deleteBookmarkId" type="number" placeholder="bookmark ID" />
+      <button @click="doDeleteBookmark">Run</button>
+    </div>
+    <ResponseBox :data="res.deleteBookmark" />
+  </section>
+
+</div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
-import { getCategories, getTags, searchTags, getBusinesses, getStats, searchBusinesses, register, login, verifyEmail, getMe, resendVerify, forgotPassword, resetPassword, setAuthToken, getReviews, createReview, deleteReview, voteReview, getBookmarks, toggleBookmark, checkBookmark, deleteBookmark, getBookmarkIds } from '../api/client'
+import { ref, reactive, onMounted, h } from 'vue'
+import api from '../api/client'
+import {
+  getStats, getCategories, getTags, searchTags, getBusinesses, getBusiness,
+  searchBusinesses, register, login, verifyEmail, getMe, resendVerify,
+  forgotPassword, resetPassword, logout, setAuthToken, getSavedToken,
+  getReviews, createReview, deleteReview, voteReview,
+  getBookmarks, toggleBookmark, checkBookmark, deleteBookmark, getBookmarkIds,
+} from '../api/client'
 
-const stats = ref(null)
-const categories = ref([])
-const tags = ref([])
-const tagTotal = ref(0)
-const tagSearch = ref('')
+// ── Shared response store — every endpoint writes here for display ────────────
+const res = reactive({
+  stats: null, categories: null, tags: null, tagSearch: null,
+  search: null, businesses: null, businessDetail: null,
+  register: null, login: null, me: null, verifyEmail: null,
+  resendVerify: null, forgotPw: null, resetPw: null,
+  reviews: null, createReview: null, deleteReview: null, voteReview: null,
+  bookmarks: null, bookmarkIds: null, toggleBookmark: null,
+  checkBookmark: null, deleteBookmark: null,
+})
+
+/** Call an API and store result or error in res[key]. */
+async function call(key, fn) {
+  res[key] = { _loading: true }
+  try {
+    const r = await fn()
+    res[key] = r.data
+  } catch (e) {
+    res[key] = { _error: true, status: e.response?.status, data: e.response?.data || e.message }
+  }
+}
+
+// ── Inline components ─────────────────────────────────────────────────────────
+function fmt(d) { return typeof d === 'string' ? d : JSON.stringify(d, null, 2) }
+
+const ResponseBox = {
+  props: ['data'],
+  setup(props) {
+    return () => {
+      if (!props.data) return null
+      if (props.data?._loading) return h('div', { class: 'response-box' }, h('div', { class: 'loading' }, 'Loading...'))
+      if (props.data?._error) return h('div', { class: 'response-box error-resp' }, [
+        h('span', { class: 'error-badge' }, String(props.data.status || 'ERR')),
+        h('pre', null, fmt(props.data.data)),
+      ])
+      return h('div', { class: 'response-box' }, h('pre', null, fmt(props.data)))
+    }
+  }
+}
+
+const TagPills = {
+  props: ['tags', 'selected'],
+  emits: ['toggle'],
+  setup(props, { emit }) {
+    return () => {
+      if (!props.tags?.length) return null
+      return h('div', { class: 'tag-pills' }, props.tags.map(t =>
+        h('span', {
+          class: ['pill', { active: props.selected.includes(t.id) }],
+          onClick: () => emit('toggle', t),
+        }, [
+          t.name + ' ',
+          h('small', null, `(${t.usage_count}${t.similarity ? ' · ' + (t.similarity * 100).toFixed(0) + '%' : ''})`)
+        ])
+      ))
+    }
+  }
+}
+
+// ── Stats ─────────────────────────────────────────────────────────────────────
+const callStats = () => call('stats', getStats)
+
+// ── Categories ────────────────────────────────────────────────────────────────
+const categoryList = ref([])
+const callCategories = async () => {
+  await call('categories', getCategories)
+  if (!res.categories?._error) categoryList.value = res.categories?.results ?? []
+}
+
+// ── Tags ──────────────────────────────────────────────────────────────────────
+const tagQ = ref('')
 const tagMinUsage = ref(2)
+const tagList = ref([])
 const selectedTagIds = ref([])
-const businesses = ref([])
-const bizTotal = ref(0)
-
-const sq = ref('')
-const slat = ref(null)
-const slng = ref(null)
-const scat = ref('')
-const ssort = ref('')
-const slimit = ref(10)
-const searching = ref(false)
-const searchResults = ref([])
-const searchErr = ref('')
-const searchTime = ref(null)
-const showRaw = ref(false)
-const searchTagQ = ref('')
-const inlineTags = ref([])
-const tagLoading = ref(false)
 const tagCache = ref({})
 
-// ── Auth state ────────────────────────────────────────────────────────────────
-const authMode = ref('login')  // 'login' | 'register'
-const authUser = ref('')
-const authPass = ref('')
-const authToken = ref('')
-const authErr = ref('')
-const authOk = ref('')
-const userProfile = ref(null)
-// Register-specific fields
-const regEmail = ref('')
-const regUsername = ref('')
-const regDisplayName = ref('')
-const regPass = ref('')
-// Email verification
-const verifyTokenInput = ref('')
-// Password reset
-const forgotEmail = ref('')
-const resetTokenInput = ref('')
-const resetNewPassword = ref('')
-const resetMsg = ref('')
-
-const loadProfile = async () => {
-  try {
-    const res = await getMe()
-    userProfile.value = res.data
-  } catch { userProfile.value = null }
-}
-
-const doLogin = async () => {
-  authErr.value = ''; authOk.value = ''
-  try {
-    const res = await login(authUser.value, authPass.value)
-    authToken.value = res.data.token
-    setAuthToken(authToken.value)
-    userProfile.value = res.data.user || null
-    authPass.value = ''
-    authOk.value = 'Logged in!'
-  } catch (e) {
-    authErr.value = e.response?.data?.detail || e.response?.data?.non_field_errors?.[0] || 'Login failed'
-  }
-}
-
-const doRegister = async () => {
-  authErr.value = ''; authOk.value = ''
-  try {
-    const res = await register({
-      email: regEmail.value,
-      username: regUsername.value,
-      password: regPass.value,
-      display_name: regDisplayName.value || undefined,
-    })
-    authToken.value = res.data.token
-    setAuthToken(authToken.value)
-    userProfile.value = res.data.user || null
-    authOk.value = 'Registered! Check your email for a verification link.'
-    regEmail.value = ''; regUsername.value = ''; regPass.value = ''; regDisplayName.value = ''
-  } catch (e) {
-    const d = e.response?.data
-    authErr.value = d?.detail || d?.email?.[0] || d?.username?.[0] || d?.password?.[0] || JSON.stringify(d) || 'Registration failed'
-  }
-}
-
-const doVerifyEmail = async () => {
-  authErr.value = ''; authOk.value = ''
-  try {
-    await verifyEmail(verifyTokenInput.value)
-    authOk.value = 'Email verified!'
-    verifyTokenInput.value = ''
-    await loadProfile()
-  } catch (e) {
-    authErr.value = e.response?.data?.detail || 'Verification failed'
-  }
-}
-
-const doResendVerify = async () => {
-  authErr.value = ''; authOk.value = ''
-  try {
-    const res = await resendVerify()
-    authOk.value = res.data?.detail || 'Verification email sent!'
-  } catch (e) {
-    authErr.value = e.response?.data?.detail || 'Could not resend'
-  }
-}
-
-const doForgotPassword = async () => {
-  resetMsg.value = ''
-  try {
-    const res = await forgotPassword(forgotEmail.value)
-    resetMsg.value = res.data?.detail || 'If that email exists, a reset link was sent.'
-    forgotEmail.value = ''
-  } catch (e) {
-    resetMsg.value = 'Error: ' + (e.response?.data?.detail || 'Request failed')
-  }
-}
-
-const doResetPassword = async () => {
-  resetMsg.value = ''
-  try {
-    const res = await resetPassword(resetTokenInput.value, resetNewPassword.value)
-    resetMsg.value = res.data?.detail || 'Password reset! Please log in with your new password.'
-    resetTokenInput.value = ''; resetNewPassword.value = ''
-    // Force logout since all tokens are invalidated
-    doLogout()
-  } catch (e) {
-    const d = e.response?.data
-    resetMsg.value = 'Error: ' + (d?.detail || d?.new_password?.[0] || JSON.stringify(d) || 'Reset failed')
-  }
-}
-
-const doLogout = () => {
-  authToken.value = ''
-  userProfile.value = null
-  setAuthToken(null)
-  authErr.value = ''; authOk.value = ''
-}
-
-// ── Bookmarks state ───────────────────────────────────────────────────────────
-const bookmarkBizId = ref(null)
-const bookmarks = ref([])
-const bookmarkIdList = ref([])
-const bookmarkMsg = ref('')
-
-const loadBookmarks = async () => {
-  bookmarkMsg.value = ''
-  try {
-    const res = await getBookmarks()
-    bookmarks.value = res.data.results ?? res.data ?? []
-  } catch (e) {
-    bookmarkMsg.value = 'Error: ' + (e.response?.data?.detail || 'Failed to load bookmarks')
-  }
-}
-
-const loadBookmarkIds = async () => {
-  bookmarkMsg.value = ''
-  try {
-    const res = await getBookmarkIds()
-    bookmarkIdList.value = res.data.business_ids ?? []
-    bookmarkMsg.value = `${bookmarkIdList.value.length} bookmarked business(es)`
-  } catch (e) {
-    bookmarkMsg.value = 'Error: ' + (e.response?.data?.detail || 'Failed')
-  }
-}
-
-const doToggleBookmark = async () => {
-  bookmarkMsg.value = ''
-  try {
-    const res = await toggleBookmark(bookmarkBizId.value)
-    bookmarkMsg.value = res.data.status === 'added' ? 'Bookmarked!' : 'Bookmark removed.'
-    if (bookmarks.value.length) loadBookmarks()
-  } catch (e) {
-    bookmarkMsg.value = 'Error: ' + (e.response?.data?.detail || 'Toggle failed')
-  }
-}
-
-const doCheckBookmark = async () => {
-  bookmarkMsg.value = ''
-  try {
-    const res = await checkBookmark(bookmarkBizId.value)
-    bookmarkMsg.value = res.data.bookmarked ? `Business #${bookmarkBizId.value} is bookmarked ✓` : `Business #${bookmarkBizId.value} is NOT bookmarked`
-  } catch (e) {
-    bookmarkMsg.value = 'Error: ' + (e.response?.data?.detail || 'Check failed')
-  }
-}
-
-const doRemoveBookmark = async (id) => {
-  try {
-    await deleteBookmark(id)
-    bookmarks.value = bookmarks.value.filter(b => b.id !== id)
-    bookmarkMsg.value = 'Bookmark removed.'
-  } catch (e) {
-    bookmarkMsg.value = 'Error: ' + (e.response?.data?.detail || 'Delete failed')
-  }
-}
-
-// ── Reviews state ─────────────────────────────────────────────────────────────
-const reviewBizId = ref(null)
-const reviews = ref([])
-const reviewsLoaded = ref(false)
-const newReviewBizId = ref(null)
-const newReviewRating = ref(0)
-const newReviewDesc = ref('')
-const newReviewPhoto = ref(null)
-const submittingReview = ref(false)
-const reviewSubmitErr = ref('')
-const reviewSubmitOk = ref('')
-
-const loadReviews = async () => {
-  if (!reviewBizId.value) return
-  reviewsLoaded.value = false
-  try {
-    const res = await getReviews({ business: reviewBizId.value })
-    reviews.value = res.data.results ?? res.data ?? []
-    reviewsLoaded.value = true
-    // Pre-fill the submission form with the same business ID
-    newReviewBizId.value = reviewBizId.value
-  } catch (e) {
-    reviews.value = []
-    reviewsLoaded.value = true
-  }
-}
-
-const onPhotoSelect = (e) => {
-  const file = e.target.files?.[0]
-  if (!file) return
-  const reader = new FileReader()
-  reader.onload = () => { newReviewPhoto.value = reader.result }
-  reader.readAsDataURL(file)
-}
-
-const submitReview = async () => {
-  submittingReview.value = true
-  reviewSubmitErr.value = ''
-  reviewSubmitOk.value = ''
-  try {
-    const payload = {
-      business: newReviewBizId.value,
-      rating: newReviewRating.value,
-      description: newReviewDesc.value,
-    }
-    if (newReviewPhoto.value) payload.photo = newReviewPhoto.value
-    await createReview(payload)
-    reviewSubmitOk.value = 'Review submitted successfully!'
-    newReviewRating.value = 0
-    newReviewDesc.value = ''
-    newReviewPhoto.value = null
-    // Reload reviews if we're viewing the same business
-    if (reviewBizId.value === newReviewBizId.value) loadReviews()
-  } catch (e) {
-    reviewSubmitErr.value = e.response?.data?.detail
-      || e.response?.data?.non_field_errors?.[0]
-      || JSON.stringify(e.response?.data) || 'Submission failed'
-  } finally {
-    submittingReview.value = false
-  }
-}
-
-const removeReview = async (id) => {
-  try {
-    await deleteReview(id)
-    reviews.value = reviews.value.filter(r => r.id !== id)
-  } catch (e) {
-    alert(e.response?.data?.detail || 'Delete failed')
-  }
-}
-
-const doVoteReview = async (review, voteType) => {
-  try {
-    const res = await voteReview(review.id, voteType)
-    // Update the review's local state optimistically
-    if (!review.vote_counts) review.vote_counts = { useful: 0, funny: 0, cool: 0 }
-    if (!review.user_votes) review.user_votes = []
-    if (res.data.status === 'added') {
-      review.vote_counts[voteType] = (review.vote_counts[voteType] || 0) + 1
-      review.user_votes.push(voteType)
-    } else {
-      review.vote_counts[voteType] = Math.max(0, (review.vote_counts[voteType] || 1) - 1)
-      review.user_votes = review.user_votes.filter(v => v !== voteType)
-    }
-  } catch (e) {
-    alert(e.response?.data?.detail || 'Vote failed')
-  }
-}
-
-const loadStats = async () => { stats.value = (await getStats()).data }
-const loadCategories = async () => { categories.value = (await getCategories()).data.results ?? [] }
-
-const loadTags = async () => {
+const callTags = async () => {
   const params = {}
-  if (tagSearch.value) params.q = tagSearch.value
+  if (tagQ.value) params.q = tagQ.value
   if (tagMinUsage.value) params.min_usage = tagMinUsage.value
-  const res = await getTags(params)
-  tags.value = res.data.results ?? []
-  tagTotal.value = res.data.count ?? tags.value.length
-  tags.value.forEach(t => { tagCache.value[t.id] = t.name })
+  await call('tags', () => getTags(params))
+  if (!res.tags?._error) {
+    tagList.value = res.tags?.results ?? []
+    tagList.value.forEach(t => { tagCache.value[t.id] = t.name })
+  }
+}
+
+const tagSearchQ = ref('')
+const tagSearchLimit = ref(20)
+const tagSearchList = ref([])
+
+const callTagSearch = async () => {
+  const params = { q: tagSearchQ.value || 'coffee', limit: tagSearchLimit.value || 20, min_usage: 1 }
+  await call('tagSearch', () => searchTags(params))
+  if (!res.tagSearch?._error) {
+    // Fix: check results first, then fall back to array response
+    tagSearchList.value = res.tagSearch?.results ?? (Array.isArray(res.tagSearch) ? res.tagSearch : [])
+    tagSearchList.value.forEach(t => { tagCache.value[t.id] = t.name })
+  }
 }
 
 const toggleTag = (t) => {
@@ -673,70 +414,236 @@ const toggleTag = (t) => {
   tagCache.value[t.id] = t.name
 }
 
-const addTag = (t) => {
-  if (!selectedTagIds.value.includes(t.id)) {
-    selectedTagIds.value.push(t.id)
-    tagCache.value[t.id] = t.name
-  }
-}
+// ── Search ────────────────────────────────────────────────────────────────────
+const sq = ref(''); const slat = ref(null); const slng = ref(null)
+const scat = ref(''); const ssort = ref(''); const slimit = ref(10)
+const stagIds = ref(''); const searching = ref(false); const searchResults = ref([])
 
-const removeTag = (tid) => {
-  selectedTagIds.value = selectedTagIds.value.filter(id => id !== tid)
-}
-
-const tagNameById = (tid) => tagCache.value[tid] || `#${tid}`
-
-let searchTagTimer = null
-const searchTagsInline = () => {
-  clearTimeout(searchTagTimer)
-  searchTagTimer = setTimeout(async () => {
-    if (!searchTagQ.value.trim()) { inlineTags.value = []; return }
-    tagLoading.value = true
-    try {
-      // Vector semantic search — finds related tags even if query doesn't match name
-      const res = await searchTags({ q: searchTagQ.value, min_usage: 1, limit: 30 })
-      inlineTags.value = res.data ?? res.data.results ?? []
-      inlineTags.value.forEach(t => { tagCache.value[t.id] = t.name })
-    } catch { inlineTags.value = [] }
-    tagLoading.value = false
-  }, 350)
-}
-
-const loadBusinesses = async () => {
-  const res = await getBusinesses()
-  businesses.value = res.data.results ?? []
-  bizTotal.value = res.data.count ?? businesses.value.length
-}
-
-const runSearch = async () => {
+const callSearch = async () => {
   searching.value = true
-  searchErr.value = ''
-  searchResults.value = []
-  searchTime.value = null
-  const t0 = performance.now()
-  try {
-    const params = { q: sq.value, limit: slimit.value || 10 }
-    if (slat.value != null) params.lat = slat.value
-    if (slng.value != null) params.lng = slng.value
-    if (scat.value) params.category = scat.value
-    if (ssort.value) params.sort = ssort.value
-    if (selectedTagIds.value.length) params.tag = selectedTagIds.value
-    searchResults.value = (await searchBusinesses(params)).data
-    searchTime.value = Math.round(performance.now() - t0)
-    loadStats()
-  } catch (e) {
-    searchErr.value = e.response?.data?.detail || 'Search failed'
-  } finally {
-    searching.value = false
+  const params = { q: sq.value, limit: slimit.value || 10 }
+  if (slat.value != null) params.lat = slat.value
+  if (slng.value != null) params.lng = slng.value
+  if (scat.value) params.category = scat.value
+  if (ssort.value) params.sort = ssort.value
+  const parsedTags = stagIds.value.split(',').map(s => parseInt(s.trim(), 10)).filter(n => !isNaN(n))
+  if (parsedTags.length) params.tag = parsedTags
+  await call('search', () => searchBusinesses(params))
+  if (!res.search?._error) searchResults.value = Array.isArray(res.search) ? res.search : (res.search?.results ?? [])
+  searching.value = false
+}
+
+// ── Businesses ────────────────────────────────────────────────────────────────
+const photoUrl = (bizId) => `${api.defaults.baseURL}/businesses/${bizId}/photo/`
+
+// ── Businesses ────────────────────────────────────────────────────────────────
+const callBusinesses = () => call('businesses', getBusinesses)
+const bizDetailId = ref(null)
+const callBusinessDetail = () => call('businessDetail', () => getBusiness(bizDetailId.value))
+
+// ── Auth ──────────────────────────────────────────────────────────────────────
+const authToken = ref('')
+const userProfile = ref(null)
+const loginUser = ref(''); const loginPass = ref('')
+const regEmail = ref(''); const regUsername = ref(''); const regPass = ref(''); const regDisplayName = ref('')
+const verifyToken = ref('')
+const forgotEmail = ref('')
+const resetToken = ref(''); const resetNewPw = ref('')
+
+const doRegister = async () => {
+  await call('register', () => register({
+    email: regEmail.value, username: regUsername.value,
+    password: regPass.value, display_name: regDisplayName.value || undefined,
+  }))
+  if (!res.register?._error && res.register?.token) {
+    authToken.value = res.register.token
+    setAuthToken(authToken.value)
+    userProfile.value = res.register.user || null
   }
 }
 
-onMounted(() => {
-  loadStats(); loadCategories(); loadTags()
-  // Pre-populate inline tag picker with popular tags
-  getTags({ min_usage: 5 }).then(res => {
-    inlineTags.value = res.data.results ?? []
-    inlineTags.value.forEach(t => { tagCache.value[t.id] = t.name })
-  }).catch(() => {})
+const doLogin = async () => {
+  await call('login', () => login(loginUser.value, loginPass.value))
+  if (!res.login?._error && res.login?.token) {
+    authToken.value = res.login.token
+    setAuthToken(authToken.value)
+    userProfile.value = res.login.user || null
+  }
+}
+
+const callMe = async () => {
+  await call('me', getMe)
+  if (!res.me?._error) userProfile.value = res.me
+}
+
+const doVerifyEmail = async () => {
+  await call('verifyEmail', () => verifyEmail(verifyToken.value))
+  if (!res.verifyEmail?._error) callMe()
+}
+
+const doResendVerify = () => call('resendVerify', resendVerify)
+const doForgotPw = () => call('forgotPw', () => forgotPassword(forgotEmail.value))
+const doResetPw = () => call('resetPw', () => resetPassword(resetToken.value, resetNewPw.value))
+
+const doLogout = async () => {
+  try { await logout() } catch { /* ignore if token already expired */ }
+  authToken.value = ''
+  userProfile.value = null
+  setAuthToken(null)
+}
+
+// ── Reviews ───────────────────────────────────────────────────────────────────
+const reviewBizId = ref(null)
+const callReviews = () => call('reviews', () => getReviews({ business: reviewBizId.value }))
+
+const newReviewBiz = ref(null); const newReviewRating = ref(0)
+const newReviewDesc = ref(''); const newReviewPhoto = ref(null)
+
+const onReviewPhoto = (e) => {
+  const file = e.target.files?.[0]
+  if (!file) return
+  const reader = new FileReader()
+  reader.onload = () => { newReviewPhoto.value = reader.result }
+  reader.readAsDataURL(file)
+}
+
+const doCreateReview = () => {
+  const payload = { business: newReviewBiz.value, rating: newReviewRating.value, description: newReviewDesc.value }
+  if (newReviewPhoto.value) payload.photo = newReviewPhoto.value
+  call('createReview', () => createReview(payload))
+}
+
+const deleteReviewId = ref(null)
+const doDeleteReview = () => call('deleteReview', () => deleteReview(deleteReviewId.value))
+
+const voteReviewId = ref(null); const voteType = ref('useful')
+const doVoteReview = () => call('voteReview', () => voteReview(voteReviewId.value, voteType.value))
+
+// ── Bookmarks ─────────────────────────────────────────────────────────────────
+const callBookmarks = () => call('bookmarks', getBookmarks)
+const callBookmarkIds = () => call('bookmarkIds', getBookmarkIds)
+
+const toggleBizId = ref(null)
+const doToggleBookmark = () => call('toggleBookmark', () => toggleBookmark(toggleBizId.value))
+
+const checkBizId = ref(null)
+const doCheckBookmark = () => call('checkBookmark', () => checkBookmark(checkBizId.value))
+
+const deleteBookmarkId = ref(null)
+const doDeleteBookmark = () => call('deleteBookmark', () => deleteBookmark(deleteBookmarkId.value))
+
+// ── On mount ──────────────────────────────────────────────────────────────────
+onMounted(async () => {
+  callStats(); callCategories(); callTags()
+  // Restore session from localStorage
+  const saved = getSavedToken()
+  if (saved) {
+    authToken.value = saved
+    try {
+      const r = await getMe()
+      userProfile.value = r.data
+    } catch {
+      // Token expired or invalid — clear it
+      authToken.value = ''
+      setAuthToken(null)
+    }
+  }
 })
 </script>
+
+<style scoped>
+.api-demo {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 24px;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  color: #e2e8f0;
+  background: #0a1220;
+  min-height: 100vh;
+}
+header { margin-bottom: 32px; }
+h1 { margin: 0 0 4px; font-size: 28px; }
+.subtitle { color: #94a3b8; margin: 0 0 16px; font-size: 14px; }
+.subtitle code { background: #1e293b; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+.toc { display: flex; flex-wrap: wrap; gap: 8px; }
+.toc a { color: #818cf8; font-size: 13px; text-decoration: none; padding: 4px 12px; border: 1px solid #334155; border-radius: 999px; }
+.toc a:hover { background: rgba(99,102,241,0.15); }
+
+.endpoint { margin: 0 0 32px; padding: 20px; border: 1px solid #1e293b; border-radius: 12px; background: #0f172a; }
+.endpoint h2 { margin: 0 0 6px; font-size: 16px; color: #f8fafc; }
+.endpoint h3 { margin: 20px 0 6px; font-size: 14px; color: #cbd5e1; border-top: 1px solid #1e293b; padding-top: 14px; }
+.params { color: #64748b; font-weight: 400; font-size: 13px; }
+.desc { color: #94a3b8; font-size: 13px; margin: 0 0 10px; }
+.desc code { background: #1e293b; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+.note { color: #fbbf24; font-size: 12px; margin: 4px 0; }
+
+.fields { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 8px; }
+.actions { margin-bottom: 8px; }
+
+input, select {
+  background: #1e293b; border: 1px solid #334155; color: #e2e8f0;
+  padding: 6px 10px; border-radius: 6px; font-size: 13px;
+}
+input.wide { flex: 2; min-width: 200px; }
+input:focus, select:focus { outline: none; border-color: #6366f1; }
+
+button {
+  background: #334155; color: #e2e8f0; border: 1px solid #475569;
+  padding: 6px 16px; border-radius: 6px; cursor: pointer; font-size: 13px;
+}
+button:hover:not(:disabled) { background: #475569; }
+button:disabled { opacity: 0.4; cursor: not-allowed; }
+button.small { padding: 3px 10px; font-size: 12px; }
+button.danger { color: #f87171; border-color: rgba(248,113,113,0.3); background: transparent; }
+
+.file-label {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: #1e293b; border: 1px solid #334155; color: #94a3b8;
+  padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 12px;
+}
+
+/* Response box */
+.response-box {
+  margin-top: 8px; background: #1e293b; border-radius: 8px;
+  max-height: 400px; overflow: auto; font-size: 12px;
+}
+.response-box pre {
+  margin: 0; padding: 12px; white-space: pre-wrap; word-break: break-word;
+  color: #94a3b8; font-family: 'JetBrains Mono', 'Fira Code', monospace;
+}
+.response-box .loading { padding: 12px; color: #64748b; }
+.error-resp { padding: 12px; }
+.error-badge { display: inline-block; background: #7f1d1d; color: #fca5a5; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; margin-bottom: 6px; }
+.error-resp pre { color: #fca5a5; }
+
+/* Tag pills */
+.tag-pills { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0; }
+.pill {
+  padding: 4px 10px; border-radius: 999px; font-size: 12px; cursor: pointer;
+  background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.25); color: #a5b4fc;
+  transition: all 0.15s;
+}
+.pill:hover { background: rgba(99,102,241,0.2); }
+.pill.active { background: rgba(99,102,241,0.4); border-color: #6366f1; }
+.pill.small { font-size: 10px; padding: 2px 7px; cursor: default; }
+.pill small { color: #64748b; }
+
+/* Auth */
+.auth-status { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 10px 14px; background: #1e293b; border-radius: 8px; margin-bottom: 14px; font-size: 13px; }
+.badge { font-size: 11px; padding: 2px 8px; border-radius: 4px; }
+.badge.ok { background: rgba(74,222,128,0.15); color: #4ade80; border: 1px solid rgba(74,222,128,0.3); }
+.badge.warn { background: rgba(251,191,36,0.15); color: #fbbf24; border: 1px solid rgba(251,191,36,0.3); }
+.token { font-size: 11px; color: #64748b; background: #0f172a; padding: 2px 6px; border-radius: 4px; }
+
+/* Search result cards */
+.results-grid { display: flex; flex-direction: column; gap: 8px; margin: 10px 0; }
+.result-card {
+  display: flex; gap: 12px; padding: 10px; background: #1e293b; border-radius: 8px;
+  border: 1px solid #334155;
+}
+.result-img { width: 80px; height: 60px; object-fit: cover; border-radius: 6px; flex-shrink: 0; }
+.result-body { display: flex; flex-direction: column; gap: 2px; font-size: 13px; min-width: 0; }
+.result-body strong { color: #f8fafc; }
+.result-body .meta { color: #64748b; font-size: 11px; }
+.result-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+</style>

@@ -48,7 +48,7 @@ else
         --bind 0.0.0.0:8000 \
         --workers "${GUNICORN_WORKERS:-3}" \
         --threads "${GUNICORN_THREADS:-2}" \
-        --timeout 600 \
+        --timeout 120 \
         --graceful-timeout 30 \
         --max-requests 1000 \
         --max-requests-jitter 50 \

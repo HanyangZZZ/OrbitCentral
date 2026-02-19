@@ -1,15 +1,18 @@
 """
-BusinessViewSet — CRUD + weighted vector search + stats.
+BusinessViewSet — CRUD + weighted vector search + stats + photo proxy.
 """
 import logging
 import os
 
+import requests as http_requests
 from django.contrib.gis.db.models.functions import Distance
 from django.contrib.gis.geos import Point
 from django.db.models import Avg, Count, F, FloatField, Value
+from django.http import HttpResponse, HttpResponseRedirect
 from pgvector.django import CosineDistance
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
+from rest_framework.permissions import IsAdminUser, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
 from ..models import Business, SearchedArea, Tag
@@ -31,12 +34,22 @@ class BusinessViewSet(viewsets.ModelViewSet):
     queryset = (
         Business.objects
         .select_related('category')
+        .prefetch_related('tags')
         .order_by('-avg_rating', 'name')
     )
     serializer_class = BusinessSerializer
     filterset_fields = ['category', 'onboarding_status']
     search_fields = ['name', 'contact_email', 'google_place_id']
     ordering_fields = ['avg_rating', 'review_count', 'name', 'created_at']
+
+    def get_permissions(self):
+        """
+        Read-only endpoints (list, retrieve, search, stats) are public.
+        Write endpoints (create, update, delete) require admin.
+        """
+        if self.action in ('create', 'update', 'partial_update', 'destroy'):
+            return [IsAdminUser()]
+        return [IsAuthenticatedOrReadOnly()]
 
     # ── Weighted search: GET /api/businesses/search/ ──────────────────────
     @action(detail=False, methods=['get'], url_path='search')
@@ -59,7 +72,10 @@ class BusinessViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        limit = min(int(request.query_params.get('limit', 10)), 50)
+        try:
+            limit = min(int(request.query_params.get('limit', 10)), 50)
+        except (ValueError, TypeError):
+            limit = 10
         sort_mode = request.query_params.get('sort', '').lower()
         category_id = request.query_params.get('category')
         tag_ids = request.query_params.getlist('tag')
@@ -215,3 +231,39 @@ class BusinessViewSet(viewsets.ModelViewSet):
             'avg_rating': round(float(avg_rating or 0), 2),
             'top_tags': top_tags,
         })
+
+    # ── Photo proxy: GET /api/businesses/<id>/photo/ ─────────────────────
+    @action(detail=True, methods=['get'], url_path='photo')
+    def photo(self, request, pk=None):
+        """
+        Proxy a Google Places photo for this business.
+        Query params:
+          ?idx=0          — photo index (default: 0 = first)
+          ?maxHeight=400  — max height in px (default 400)
+        Returns 302 redirect to the resolved Google photo URL, or 404.
+        """
+        business = self.get_object()
+        refs = business.photo_references or []
+
+        idx = int(request.query_params.get('idx', 0))
+        if idx < 0 or idx >= len(refs):
+            return Response({'detail': 'No photo at this index.'}, status=status.HTTP_404_NOT_FOUND)
+
+        max_height = int(request.query_params.get('maxHeight', 400))
+        api_key = os.environ.get('GOOGLE_PLACES_API_KEY', '')
+        if not api_key:
+            return Response({'detail': 'Photo service unavailable.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
+
+        photo_ref = refs[idx]
+        url = f'https://places.googleapis.com/v1/{photo_ref}/media?maxHeightPx={max_height}&skipHttpRedirect=true'
+        try:
+            resp = http_requests.get(url, headers={'X-Goog-Api-Key': api_key}, timeout=10)
+            if resp.status_code == 200:
+                data = resp.json()
+                photo_url = data.get('photoUri')
+                if photo_url:
+                    return HttpResponseRedirect(photo_url)
+        except Exception:
+            pass
+
+        return Response({'detail': 'Could not resolve photo.'}, status=status.HTTP_502_BAD_GATEWAY)
