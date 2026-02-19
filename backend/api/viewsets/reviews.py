@@ -72,6 +72,13 @@ class ReviewViewSet(viewsets.ModelViewSet):
         If the vote already exists, it is removed (toggle off).
         """
         review = self.get_object()
+
+        if review.user == request.user:
+            return Response(
+                {'detail': 'You cannot vote on your own review.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         vote_type = request.data.get('vote_type', '').strip().lower()
         valid_types = {vt[0] for vt in ReviewVote.VOTE_TYPES}
         if vote_type not in valid_types:
@@ -111,6 +118,11 @@ class ReviewViewSet(viewsets.ModelViewSet):
             if ',' in photo_b64:
                 photo_b64 = photo_b64.split(',', 1)[1]
             image_bytes = base64.b64decode(photo_b64)
+
+            # Reject uploads > 5 MB
+            if len(image_bytes) > 5 * 1024 * 1024:
+                logger.warning('Review photo rejected: %d bytes exceeds 5 MB limit', len(image_bytes))
+                return None
 
             # Determine extension from first bytes
             if image_bytes[:3] == b'\xff\xd8\xff':

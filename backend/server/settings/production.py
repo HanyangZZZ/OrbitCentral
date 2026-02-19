@@ -3,9 +3,18 @@ Production-specific settings.
 """
 import os
 
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *  # noqa: F401, F403
 
 DEBUG = False
+
+# ── Secret key — MUST be set via environment in production ─────────────────────
+if SECRET_KEY == 'INSECURE-change-me':  # noqa: F405
+    raise ImproperlyConfigured(
+        'DJANGO_SECRET_KEY environment variable must be set in production. '
+        'Generate one with: python -c "from django.core.management.utils import get_random_secret_key; print(get_random_secret_key())"'
+    )
 
 ALLOWED_HOSTS = [
     h.strip() for h in os.environ.get('ALLOWED_HOSTS', '').split(',') if h.strip()

@@ -139,7 +139,7 @@ services:
       dockerfile: Dockerfile
     container_name: fblc-flower
     restart: unless-stopped
-    command: celery -A server flower --port=5555
+    command: celery -A server flower --port=5555 --basic-auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:?FLOWER_PASSWORD must be set}
     environment:
       DJANGO_SETTINGS_MODULE: server.settings.production
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
@@ -151,7 +151,6 @@ services:
       PG_PASSWORD: ${PG_PASSWORD}
       PG_HOST: ${PG_HOST:-postgres}
       PG_PORT: ${PG_PORT:-5432}
-      FLOWER_UNAUTHENTICATED_API: "true"
     expose:
       - "5555"
     depends_on:
@@ -162,7 +161,7 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:5555/api/workers"]
+      test: ["CMD", "curl", "-f", "-u", "${FLOWER_USER:-admin}:${FLOWER_PASSWORD}", "http://localhost:5555/api/workers"]
       interval: 30s
       timeout: 10s
       retries: 3

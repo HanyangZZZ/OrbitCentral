@@ -49,7 +49,10 @@ class TagViewSet(viewsets.ReadOnlyModelViewSet):
         if not q:
             return Response({'detail': 'q parameter required.'}, status=status.HTTP_400_BAD_REQUEST)
 
-        limit = min(int(request.query_params.get('limit', 20)), 50)
+        try:
+            limit = min(int(request.query_params.get('limit', 20)), 50)
+        except (ValueError, TypeError):
+            limit = 20
         min_usage = request.query_params.get('min_usage')
 
         # Import here to avoid circular dependency

@@ -15,3 +15,4 @@ RUN npm run build
 # ── Stage 2: Nginx ───────────────────────────────────────────────────────────
 FROM nginx:1.27-alpine
 COPY --from=frontend-build /build/dist /app/frontend
+COPY nginx/.htpasswd /etc/nginx/.htpasswd

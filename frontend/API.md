@@ -308,6 +308,58 @@ await deleteBusiness(42)
 
 ---
 
+## Business Photo Proxy
+
+```
+GET /api/businesses/{id}/photo/?idx=0&maxHeight=400
+```
+
+Returns a **302 redirect** to the Google Places photo for the business. Use this as an `<img src>` — the browser follows the redirect automatically.
+
+Most businesses have `image_url: null` because GCS image storage isn't configured yet. This proxy endpoint resolves photos on the fly from the `photo_references` stored on each business.
+
+### Parameters
+
+| Param | Type | Default | Description |
+|-------|------|---------|-------------|
+| `idx` | int | `0` | Index into the business's `photo_references` array |
+| `maxHeight` | int | `400` | Maximum height in pixels for the returned image |
+
+### Response
+
+- **302** — Redirect to the resolved Google Places photo URL
+- **404** — Business not found, or no photo at the given index
+- **503** — `GOOGLE_PLACES_API_KEY` not configured on the server
+
+### Usage
+
+```html
+<!-- Direct in HTML/Vue template -->
+<img :src="`${apiBase}/businesses/${business.id}/photo/`" @error="handleNoPhoto" />
+
+<!-- Higher resolution -->
+<img :src="`${apiBase}/businesses/${business.id}/photo/?maxHeight=800`" />
+
+<!-- Second photo -->
+<img :src="`${apiBase}/businesses/${business.id}/photo/?idx=1`" />
+```
+
+**Client function:**
+
+```javascript
+import { getBusinessPhotoUrl } from '@/api/client'
+
+const url = getBusinessPhotoUrl(42)                          // first photo, 400px
+const url = getBusinessPhotoUrl(42, { idx: 1, maxHeight: 800 }) // second photo, 800px
+
+// Check if business has photos before rendering
+const hasPhotos = business.photo_references?.length > 0
+```
+
+> **Tip:** Always add an `@error` handler on `<img>` tags — some businesses have stale photo references that may 404.
+
+---
+
 ## Weighted Vibe Search
 
 ```
