@@ -13,6 +13,7 @@
       <a href="#reviews">Reviews</a>
       <a href="#bookmarks">Bookmarks</a>
       <a href="#ai-reviews">AI Reviews</a>
+      <a href="#ai-personalization">AI Personalization</a>
     </nav>
   </header>
 
@@ -365,6 +366,49 @@
     </template>
   </section>
 
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- AI PERSONALIZATION                                                 -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <section id="ai-personalization" class="endpoint">
+    <h2>AI Personalization <span class="params">/api/businesses/personalized/</span></h2>
+    <p class="desc">GPT-4.1 analyzes your recent reviews &amp; bookmarks, generates a taste-based search query, then runs the full weighted vibe search to discover new businesses you'll love.<br/>
+      Auth + verified email required. Excludes businesses you've already reviewed or bookmarked.</p>
+
+    <h3>GET /api/businesses/personalized/ <span class="params">(auth + verified)</span></h3>
+    <p class="desc">Returns AI-generated query plus top matching businesses based on your activity.</p>
+    <div class="fields">
+      <input v-model.number="persLat" type="number" step="0.0001" placeholder="lat (e.g. 43.651)" />
+      <input v-model.number="persLng" type="number" step="0.0001" placeholder="lng (e.g. -79.347)" />
+      <input v-model.number="persLimit" type="number" placeholder="limit (default 5)" style="width:100px" />
+      <button @click="callPersonalized" :disabled="persLoading">{{ persLoading ? 'Thinking...' : 'Get Recommendations' }}</button>
+    </div>
+
+    <div v-if="persQuery" class="ai-generated" style="margin:10px 0">
+      <strong>AI-generated query:</strong>
+      <p>"{{ persQuery }}" <small style="color:#64748b">(profile size: {{ persProfileSize }} businesses)</small></p>
+    </div>
+
+    <div v-if="persResults.length" class="results-grid">
+      <div v-for="b in persResults" :key="b.id" class="result-card">
+        <img v-if="b.photo_url" :src="b.photo_url.startsWith('http') ? b.photo_url : photoUrl(b.id)" class="result-img" />
+        <div class="result-body">
+          <strong>{{ b.name }}</strong>
+          <span class="meta">
+            {{ b.category_name }} · ★{{ b.avg_rating?.toFixed(1) || '—' }}
+            <template v-if="b.distance_km != null"> · {{ b.distance_km.toFixed(1) }}km</template>
+            <template v-if="b.score != null"> · score {{ b.score.toFixed(3) }}</template>
+          </span>
+          <span v-if="b.description" style="color:#94a3b8;font-size:12px">{{ b.description.slice(0, 120) }}{{ b.description.length > 120 ? '…' : '' }}</span>
+          <div v-if="b.tags?.length" class="result-tags">
+            <span v-for="t in b.tags" :key="t.id || t" class="pill small">{{ t.name || t }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <ResponseBox :data="res.personalized" />
+  </section>
+
 </div>
 </template>
 
@@ -379,6 +423,7 @@ import {
   getBookmarks, toggleBookmark, checkBookmark, deleteBookmark, getBookmarkIds,
   getAIReviewSessions, startAIReview, sendAIReviewMessage,
   generateAIReview, confirmAIReview, abandonAIReview,
+  getPersonalized,
 } from '../api/client'
 
 // ── Shared response store — every endpoint writes here for display ────────────
@@ -391,6 +436,7 @@ const res = reactive({
   bookmarks: null, bookmarkIds: null, toggleBookmark: null,
   checkBookmark: null, deleteBookmark: null,
   aiSessions: null, aiStart: null, aiMessage: null, aiGenerate: null, aiConfirm: null,
+  personalized: null,
 })
 
 /** Call an API and store result or error in res[key]. */
@@ -678,6 +724,27 @@ const doAIAbandon = async () => {
   aiGeneratedDesc.value = ''
   aiTagsAdded.value = []
   aiTagsRemoved.value = []
+}
+
+// ── AI Personalization ─────────────────────────────────────────────────────────
+const persLat = ref(null); const persLng = ref(null); const persLimit = ref(5)
+const persLoading = ref(false); const persQuery = ref(''); const persProfileSize = ref(0)
+const persResults = ref([])
+
+const callPersonalized = async () => {
+  persLoading.value = true
+  persQuery.value = ''; persProfileSize.value = 0; persResults.value = []
+  const params = {}
+  if (persLat.value != null) params.lat = persLat.value
+  if (persLng.value != null) params.lng = persLng.value
+  if (persLimit.value) params.limit = persLimit.value
+  await call('personalized', () => getPersonalized(params))
+  if (!res.personalized?._error) {
+    persQuery.value = res.personalized?.query || ''
+    persProfileSize.value = res.personalized?.profile_size || 0
+    persResults.value = res.personalized?.results || []
+  }
+  persLoading.value = false
 }
 
 // ── On mount ──────────────────────────────────────────────────────────────────
