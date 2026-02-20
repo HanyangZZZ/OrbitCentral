@@ -12,7 +12,8 @@ How to deploy FBLC to a cloud server. This guide uses Google Compute Engine (GCE
 | Region | `northamerica-northeast2-b` |
 | External IP | `34.130.223.201` |
 | Domain | `orbitcentral.ca` |
-| Frontend + API | `https://orbitcentral.ca` |
+| User Frontend | `https://orbitcentral.ca` |
+| API Demo Frontend | `https://test.orbitcentral.ca` |
 | API (external) | `https://business.orbitcentral.ca` |
 | Admin panel | `https://business.orbitcentral.ca/admin/` |
 | DB portal (Adminer) | `https://admin.orbitcentral.ca` |
@@ -23,6 +24,7 @@ How to deploy FBLC to a cloud server. This guide uses Google Compute Engine (GCE
 | Type | Name | Value |
 |------|------|-------|
 | A | `orbitcentral.ca` | `34.130.223.201` |
+| A | `test.orbitcentral.ca` | `34.130.223.201` |
 | A | `business.orbitcentral.ca` | `34.130.223.201` |
 | A | `admin.orbitcentral.ca` | `34.130.223.201` |
 | A | `flower.orbitcentral.ca` | `34.130.223.201` |
@@ -36,8 +38,9 @@ Internet
   │
   ▼  :80 (→ 301 HTTPS)  :443 (SSL/TLS)
 [ Nginx ] ── virtual-host routing ── [ Certbot ] (cert renewal)
-  ├── orbitcentral.ca          → Vue SPA + /api/ → [ Django/Gunicorn :8000 ] → [ PostgreSQL :5432 ]
-  ├── business.orbitcentral.ca → Django REST API + /admin/                      (pgvector + PostGIS)
+  ├── orbitcentral.ca          → User Vue SPA + /api/ → [ Django/Gunicorn :8000 ] → [ PostgreSQL :5432 ]
+  ├── test.orbitcentral.ca     → API Demo Vue SPA                                     (pgvector + PostGIS)
+  ├── business.orbitcentral.ca → Django REST API + /admin/
   ├── admin.orbitcentral.ca    → [ Adminer :8080 ]
   ├── flower.orbitcentral.ca   → [ Flower :5555 ]
   └── unknown Host             → 444 (drop)
@@ -47,12 +50,12 @@ Internet
                                     [ Redis :6379 ] → [ Celery Worker ]
 ```
 
-- **Nginx** — HTTPS termination + virtual-host reverse proxy; builds Vue frontend into the image
+- **Nginx** — HTTPS termination + virtual-host reverse proxy; builds two Vue frontends (user + demo) into the image
 - **Certbot** — Let's Encrypt certificate issuance and renewal
 - **Django/Gunicorn** — runs the Python API (3 workers, 2 threads each)
 - **PostgreSQL** — stores all data (with pgvector for AI search, PostGIS for geography)
 - **Redis** — message broker for Celery background tasks
-- **Celery Worker** — processes background tasks (Google Places import, AI classification)
+- **Celery Worker** — processes background tasks (Google Places import, email sending)
 - **Flower** — web dashboard for monitoring Celery tasks (port 5555)
 - **Adminer** — database web portal
 

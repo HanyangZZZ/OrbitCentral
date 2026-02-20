@@ -20,10 +20,12 @@ FBLC helps users find local businesses using AI-powered **"vibe search"**. Inste
 ```
 Browser / iOS app
       │
-      ▼
-  Nginx :80  (virtual-host routing)
+      ▼  :80 (→ 301 HTTPS)  :443 (SSL/TLS)
+  Nginx ── virtual-host routing ── Certbot (Let's Encrypt auto-renewal)
       │
-      ├── orbitcentral.ca          →  Vue SPA (built into image) + /api/ proxy
+      ├── orbitcentral.ca          →  User Vue SPA + /api/ proxy → Django
+      ├── test.orbitcentral.ca     →  API Demo Vue SPA
+      ├── business.orbitcentral.ca →  Django REST API + /admin/
       ├── admin.orbitcentral.ca    →  Adminer (DB portal)
       ├── flower.orbitcentral.ca   →  Flower (Celery dashboard)
       └── unknown Host             →  444 (connection drop)
@@ -31,15 +33,16 @@ Browser / iOS app
       ▼
   Django/Gunicorn :8000
       │
-      ├── REST API (DRF)
+      ├── REST API (DRF) + reCAPTCHA v3 verification
       ├── AI classification & tagging (GPT-4o-mini)
+      ├── AI-assisted review writing
       └── Vector embeddings (text-embedding-3-small)
       │                              │
       │                  task.delay() │
       ▼                              ▼
   PostgreSQL :5432            Redis :6379 ──► Celery Worker
       ├── pgvector                              ├── Google Places auto-import
-      ├── PostGIS                               ├── AI classification
+      ├── PostGIS                               ├── Email sending (verify/reset)
       └── pg_trgm                               └── Retries (3×, crash-safe)
 ```
 
@@ -48,10 +51,11 @@ Browser / iOS app
 ```
 FBLC/
 ├── backend/                 Django REST API                → see backend/README.md
+├── frontend-user/           User-facing Vue SPA            → see frontend-user/README.md
 ├── frontend-demo/           API testing demo app           → see frontend-demo/README.md
 ├── postgres/                Custom PostgreSQL image (pgvector + PostGIS)
-├── nginx/                   Reverse proxy + frontend build (Dockerfile)
-├── docker-compose.yml       7 containers: postgres, redis, django, celery, nginx, adminer, flower
+├── nginx/                   Reverse proxy + dual frontend build (3-stage Dockerfile)
+├── docker-compose.yml       8 containers: postgres, redis, django, celery, nginx, certbot, adminer, flower
 ├── Makefile                 Shortcut commands (run make help)
 ├── DEPLOYMENT.md            Server deployment guide
 └── .env.production.example  Template for secrets / API keys
@@ -81,12 +85,13 @@ curl "http://localhost/api/businesses/search/?q=cozy+coffee&lat=43.6532&lng=-79.
 
 | Service | URL |
 |---------|-----|
-| Frontend | `http://orbitcentral.ca` (prod) · `http://localhost:5173` (dev) |
-| API | `http://orbitcentral.ca/api/` (prod) · `http://localhost/api/` (dev) |
-| Admin panel | `http://orbitcentral.ca/admin/` |
-| Adminer (DB portal) | `http://admin.orbitcentral.ca` |
-| Flower (task monitor) | `http://flower.orbitcentral.ca` |
-| Health check | `http://orbitcentral.ca/health` |
+| User Frontend | `https://orbitcentral.ca` (prod) · `http://localhost:5173` (dev) |
+| API Demo Frontend | `https://test.orbitcentral.ca` |
+| API | `https://business.orbitcentral.ca/api/` (prod) · `http://localhost/api/` (dev) |
+| Admin panel | `https://business.orbitcentral.ca/admin/` |
+| Adminer (DB portal) | `https://admin.orbitcentral.ca` |
+| Flower (task monitor) | `https://flower.orbitcentral.ca` |
+| Health check | `https://orbitcentral.ca/health` |
 
 ## Useful Commands
 
@@ -121,6 +126,7 @@ Key variables in `.env` (see `.env.production.example` for the full list):
 | `DJANGO_SECRET_KEY` | Yes | Django secret key for security |
 | `ALLOWED_HOSTS` | Prod | Comma-separated allowed hostnames |
 | `CORS_ALLOWED_ORIGINS` | Prod | Allowed frontend origins |
+| `RECAPTCHA_SECRET_KEY` | Prod | Google reCAPTCHA v3 secret (leave empty to disable) |
 
 ## Tech Stack
 
@@ -138,15 +144,18 @@ Key variables in `.env` (see `.env.production.example` for the full list):
 | Auto-import | Google Places API (New) | Bulk business discovery |
 | Proxy | Nginx 1.27 | Reverse proxy, rate limiting, static files |
 | DB Portal | Adminer | Web-based database management |
-| Deployment | Docker Compose | 7 containers orchestrated |
+| Deployment | Docker Compose | 8 containers orchestrated |
+| HTTPS | Certbot (Let's Encrypt) | Automatic SSL certificate issuance & renewal |
+| Bot Protection | reCAPTCHA v3 | Score-based invisible captcha on login/register |
 
 ## Documentation
 
 | Doc | Covers |
 |-----|--------|
 | **[backend/README.md](backend/README.md)** | API endpoints, models, services, management commands |
+| **[frontend-user/README.md](frontend-user/README.md)** | User-facing SPA, features, components |
 | **[frontend-demo/README.md](frontend-demo/README.md)** | API demo app, client reference |
-| **[frontend-demo/API.md](frontend-demo/API.md)** | Complete API reference with examples |
+| **[frontend-demo/docs/](frontend-demo/docs/)** | Complete API reference (13 endpoint docs) |
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | Server setup, deployment steps, HTTPS, backups |
 
 ---
