@@ -7,8 +7,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:8000',
-        changeOrigin: true
+        target: 'http://34.130.223.201',
+        changeOrigin: true,
+        headers: { Host: 'business.orbitcentral.ca' }
       }
     }
   }

@@ -1,0 +1,12 @@
+# Prevent host build artifacts from leaking into Docker build context.
+# The Nginx Dockerfile runs its own npm ci + vite build inside the container.
+frontend/node_modules
+frontend/dist
+frontend/dist-ssr
+frontend/.vite
+backend/__pycache__
+backend/.venv
+*.pyc
+.DS_Store
+.git
+backups/

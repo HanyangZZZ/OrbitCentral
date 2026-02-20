@@ -73,6 +73,11 @@ services:
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       # Google Places (for import_places command)
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      # Brevo (transactional email)
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-hanyang.zhuo1219@gmail.com}
+      BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-Orbit}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://orbitcentral.ca}
       # Celery
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
@@ -113,6 +118,11 @@ services:
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
+      # Brevo (transactional email)
+      BREVO_API_KEY: ${BREVO_API_KEY:-}
+      BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-hanyang.zhuo1219@gmail.com}
+      BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-Orbit}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://orbitcentral.ca}
     volumes:
       - django_logs:/app/logs
     depends_on:

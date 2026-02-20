@@ -146,9 +146,8 @@ class ReviewViewSet(viewsets.ModelViewSet):
             client = _get_gcs_client()
             bucket = client.bucket(bucket_name)
             blob = bucket.blob(gcs_path)
-            blob.upload_from_string(image_bytes, content_type=content_type)
             blob.cache_control = 'public, max-age=31536000'
-            blob.patch()
+            blob.upload_from_string(image_bytes, content_type=content_type)
 
             public_url = getattr(django_settings, 'GCS_PUBLIC_URL', f'https://storage.googleapis.com/{bucket_name}')
             return f'{public_url}/{gcs_path}'

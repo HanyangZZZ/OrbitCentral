@@ -1,5 +1,7 @@
 """
 Email tasks — verification and password reset via Brevo (Sendinblue).
+
+Returns real status dicts so callers can report success/failure.
 """
 import logging
 from html import escape as html_escape
@@ -16,14 +18,11 @@ logger = logging.getLogger('api')
     default_retry_delay=10,
     acks_late=True,
     reject_on_worker_lost=True,
-    ignore_result=True,
 )
 def send_verification_email_task(self, user_id: int, token: str):
     """
     Send an email-verification link to a user via Brevo (Sendinblue).
-
-    Called after registration or when the user requests a new link:
-        send_verification_email_task.delay(user.id, token_string)
+    Returns {'status': 'sent', 'message_id': ...} or {'status': 'error', 'reason': ...}.
     """
     import sib_api_v3_sdk
     from sib_api_v3_sdk.rest import ApiException
@@ -36,13 +35,15 @@ def send_verification_email_task(self, user_id: int, token: str):
     try:
         user = User.objects.get(pk=user_id)
     except User.DoesNotExist:
-        logger.error("send_verification_email: user %d not found", user_id)
-        return
+        msg = f"user {user_id} not found"
+        logger.error("send_verification_email: %s", msg)
+        return {'status': 'error', 'reason': msg}
 
     api_key = django_settings.BREVO_API_KEY
     if not api_key:
-        logger.error("send_verification_email: BREVO_API_KEY not configured")
-        return
+        msg = "BREVO_API_KEY not configured"
+        logger.error("send_verification_email: %s", msg)
+        return {'status': 'error', 'reason': msg}
 
     frontend_url = django_settings.FRONTEND_BASE_URL.rstrip('/')
     verify_url = f'{frontend_url}/verify-email?token={token}'
@@ -93,12 +94,15 @@ def send_verification_email_task(self, user_id: int, token: str):
             "Verification email sent to %s (message_id=%s)",
             user.email, response.message_id,
         )
+        return {'status': 'sent', 'message_id': response.message_id, 'to': user.email}
     except ApiException as exc:
         logger.warning(
             "Brevo send failed (attempt %d/3): %s",
             self.request.retries + 1, exc,
         )
-        raise self.retry(exc=exc)
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc)
+        return {'status': 'error', 'reason': f'Brevo API error after {self.max_retries + 1} attempts: {exc}'}
 
 
 # ── Password reset ─────────────────────────────────────────────────────────────
@@ -108,14 +112,11 @@ def send_verification_email_task(self, user_id: int, token: str):
     default_retry_delay=10,
     acks_late=True,
     reject_on_worker_lost=True,
-    ignore_result=True,
 )
 def send_password_reset_email_task(self, user_id: int, token: str):
     """
     Send a password-reset link to a user via Brevo (Sendinblue).
-
-    Called from AuthViewSet.forgot_password:
-        send_password_reset_email_task.delay(user.id, token_string)
+    Returns {'status': 'sent', 'message_id': ...} or {'status': 'error', 'reason': ...}.
     """
     import sib_api_v3_sdk
     from sib_api_v3_sdk.rest import ApiException
@@ -128,13 +129,15 @@ def send_password_reset_email_task(self, user_id: int, token: str):
     try:
         user = User.objects.get(pk=user_id)
     except User.DoesNotExist:
-        logger.error("send_password_reset_email: user %d not found", user_id)
-        return
+        msg = f"user {user_id} not found"
+        logger.error("send_password_reset_email: %s", msg)
+        return {'status': 'error', 'reason': msg}
 
     api_key = django_settings.BREVO_API_KEY
     if not api_key:
-        logger.error("send_password_reset_email: BREVO_API_KEY not configured")
-        return
+        msg = "BREVO_API_KEY not configured"
+        logger.error("send_password_reset_email: %s", msg)
+        return {'status': 'error', 'reason': msg}
 
     frontend_url = django_settings.FRONTEND_BASE_URL.rstrip('/')
     reset_url = f'{frontend_url}/reset-password?token={token}'
@@ -188,9 +191,12 @@ def send_password_reset_email_task(self, user_id: int, token: str):
             "Password reset email sent to %s (message_id=%s)",
             user.email, response.message_id,
         )
+        return {'status': 'sent', 'message_id': response.message_id, 'to': user.email}
     except ApiException as exc:
         logger.warning(
             "Brevo send failed (attempt %d/3): %s",
             self.request.retries + 1, exc,
         )
-        raise self.retry(exc=exc)
+        if self.request.retries < self.max_retries:
+            raise self.retry(exc=exc)
+        return {'status': 'error', 'reason': f'Brevo API error after {self.max_retries + 1} attempts: {exc}'}
