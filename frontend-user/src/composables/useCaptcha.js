@@ -1,41 +1,35 @@
 /**
- * useCaptcha.js — Centralized reCAPTCHA v2 Invisible Composable
+ * useCaptcha.js — reCAPTCHA v3 Composable
  * ══════════════════════════════════════════════════════════════════════════════
  * PURPOSE:
- *   Provides a single, reusable interface for reCAPTCHA across the entire app.
+ *   Provides a single, reusable interface for reCAPTCHA v3 across the app.
  *   Any form that needs bot protection just calls:
  *
- *     const { execute } = useCaptcha('recaptcha-login')
- *     const token = await execute()           // silent for humans, challenge for bots
+ *     const { execute } = useCaptcha()
+ *     const token = await execute('login')    // 100% invisible, no UI needed
  *
- * MULTI-LAYER VERIFICATION:
- *   Layer 1 — Invisible analysis: reCAPTCHA silently evaluates mouse movement,
- *             browsing patterns, and device signals. Legitimate users pass instantly.
- *   Layer 2 — Visual challenge: If the invisible score is ambiguous, Google
- *             automatically shows an image/click/drag challenge.
+ * HOW IT WORKS:
+ *   reCAPTCHA v3 runs entirely in the background — no widget, no challenge,
+ *   no user interaction. Google scores each request from 0.0 (bot) to 1.0
+ *   (human). The backend checks `score >= threshold` (default 0.5).
+ *
+ *   The `action` string (e.g. 'login', 'register') is sent to Google so
+ *   the backend can verify the token was generated for the correct form.
  *
  * INFRASTRUCTURE:
- *   • Script loaded lazily — only fetched on first use, not on page load.
- *   • Singleton pattern — the reCAPTCHA JS is loaded once no matter how
- *     many components call useCaptcha().
+ *   • Script loaded lazily — only fetched on first execute(), not on page load.
+ *   • Singleton pattern — the reCAPTCHA JS is loaded once for all callers.
  *   • Site key from env (VITE_RECAPTCHA_SITE_KEY) with fallback.
- *   • Each form gets its own widget instance via a unique container ID.
+ *   • No DOM elements needed (v3 is fully invisible).
  *
  * USAGE IN A PAGE:
- *   <template>
- *     <form @submit.prevent="onSubmit">
- *       ...fields...
- *       <div :id="containerId"></div>   ← invisible widget anchor
- *     </form>
- *   </template>
- *
  *   <script setup>
  *   import useCaptcha from '@/composables/useCaptcha'
- *   const { containerId, execute } = useCaptcha('recaptcha-login')
+ *   const { execute } = useCaptcha()
  *
  *   async function onSubmit() {
- *     const token = await execute()
- *     await login(user, pass, token)  // send token to backend
+ *     const token = await execute('login')
+ *     await login(user, pass, token)
  *   }
  *   </script>
  * ══════════════════════════════════════════════════════════════════════════════
@@ -43,120 +37,64 @@
 
 // ── Configuration ────────────────────────────────────────────────────────────
 const SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LfjM3AsAAAAAHRcfPYW3kGl9XLcawICgGwSjQlE'
-const SCRIPT_URL = 'https://www.google.com/recaptcha/api.js?onload=onRecaptchaLoaded&render=explicit'
 
 // ── Singleton script loader ──────────────────────────────────────────────────
-let scriptPromise = null     // resolves when grecaptcha is ready
-let grecaptchaReady = false
+let scriptPromise = null
 
 function loadRecaptchaScript() {
   if (scriptPromise) return scriptPromise
 
-  scriptPromise = new Promise((resolve) => {
-    // If already loaded (e.g. from a CDN in index.html), resolve immediately
-    if (window.grecaptcha && window.grecaptcha.render) {
-      grecaptchaReady = true
+  scriptPromise = new Promise((resolve, reject) => {
+    // Already loaded (e.g. from a previous call)
+    if (window.grecaptcha && window.grecaptcha.execute) {
       resolve()
       return
     }
 
-    // Global callback that reCAPTCHA calls once the library is ready
-    window.onRecaptchaLoaded = () => {
-      grecaptchaReady = true
-      resolve()
-    }
-
     const script = document.createElement('script')
-    script.src = SCRIPT_URL
+    // v3 uses render=SITE_KEY (not render=explicit)
+    script.src = `https://www.google.com/recaptcha/api.js?render=${SITE_KEY}`
     script.async = true
     script.defer = true
+    script.onload = () => {
+      // grecaptcha.ready fires once the library is fully initialized
+      window.grecaptcha.ready(() => resolve())
+    }
+    script.onerror = () => reject(new Error('Failed to load reCAPTCHA script'))
     document.head.appendChild(script)
   })
 
   return scriptPromise
 }
 
-
 // ── Composable ───────────────────────────────────────────────────────────────
 /**
- * @param {string} containerId  — unique DOM id for the invisible widget (e.g. 'recaptcha-login')
- * @returns {{ containerId: string, execute: () => Promise<string> }}
+ * @returns {{ execute: (action: string) => Promise<string> }}
  */
-export default function useCaptcha(containerId = 'recaptcha-container') {
-  let widgetId = null
-
+export default function useCaptcha() {
   /**
-   * Render the invisible widget into the container element.
-   * Called once, on the first execute() invocation.
+   * Execute reCAPTCHA v3 for the given action.
+   * Returns a token string to send to the backend.
+   *
+   * @param {string} action — e.g. 'login', 'register', 'forgot_password'
    */
-  function renderWidget(resolve, reject) {
-    const el = document.getElementById(containerId)
-    if (!el) {
-      reject(new Error(`reCAPTCHA container #${containerId} not found in DOM`))
-      return
-    }
-
+  async function execute(action = 'submit') {
     try {
-      widgetId = window.grecaptcha.render(containerId, {
-        sitekey: SITE_KEY,
-        size: 'invisible',
-        callback: (token) => resolve(token),
-        'error-callback': () => reject(new Error('reCAPTCHA challenge failed')),
-        'expired-callback': () => reject(new Error('reCAPTCHA token expired, please try again')),
-      })
-      // Kick off the invisible check immediately after rendering
-      window.grecaptcha.execute(widgetId)
+      await loadRecaptchaScript()
+      const token = await window.grecaptcha.execute(SITE_KEY, { action })
+      return token
     } catch (err) {
-      reject(err)
+      console.warn('reCAPTCHA execute failed, proceeding without token:', err)
+      // Fail open — don't block users if reCAPTCHA script fails
+      return ''
     }
   }
 
-  /**
-   * Execute the invisible captcha. Returns a token string.
-   * – First call: loads script + renders widget + executes.
-   * – Subsequent calls: resets and re-executes.
-   * – If user is suspicious, Google shows a visual challenge automatically.
-   */
-  function execute() {
-    return new Promise(async (resolve, reject) => {
-      try {
-        await loadRecaptchaScript()
-      } catch (err) {
-        // Script load failed — fail open so users aren't blocked
-        resolve('')
-        return
-      }
-
-      if (widgetId !== null) {
-        // Widget already rendered — reset and re-execute
-        try {
-          // Re-bind callback for this execution
-          window.grecaptcha.reset(widgetId)
-          // We need to re-render to bind a new callback, so destroy and recreate
-          const el = document.getElementById(containerId)
-          if (el) el.innerHTML = ''
-          widgetId = null
-          renderWidget(resolve, reject)
-        } catch (err) {
-          reject(err)
-        }
-      } else {
-        renderWidget(resolve, reject)
-      }
-    })
-  }
-
-  return {
-    containerId,
-    execute,
-    /** Expose for testing */
-    get siteKey() { return SITE_KEY },
-  }
+  return { execute }
 }
 
 /**
  * Check if reCAPTCHA is configured (site key is present).
- * Components can use this to conditionally render the container.
  */
 export function isCaptchaEnabled() {
   return !!SITE_KEY
