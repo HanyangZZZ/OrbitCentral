@@ -170,6 +170,15 @@ export const searchBusinesses = (params = {}) => {
  */
 export const getPersonalized = (params = {}) => api.get('/businesses/personalized/', { params })
 
+// ── Geocode ───────────────────────────────────────────────────────────────────
+/**
+ * Reverse-geocode coordinates to city + province.
+ * @param {number} lat — latitude
+ * @param {number} lng — longitude
+ * @returns {{ city, province, province_code, country, country_code, formatted_address }}
+ */
+export const reverseGeocode = (lat, lng) => api.get('/businesses/geocode/', { params: { lat, lng } })
+
 // ── Stats ─────────────────────────────────────────────────────────────────────
 export const getStats = () => api.get('/businesses/stats/')
 

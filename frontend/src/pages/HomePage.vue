@@ -14,6 +14,7 @@
       <a href="#bookmarks">Bookmarks</a>
       <a href="#ai-reviews">AI Reviews</a>
       <a href="#ai-personalization">AI Personalization</a>
+      <a href="#geocode">Geocode</a>
     </nav>
   </header>
 
@@ -409,6 +410,28 @@
     <ResponseBox :data="res.personalized" />
   </section>
 
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- GEOCODE                                                            -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <section id="geocode" class="endpoint">
+    <h2>Reverse Geocode <span class="params">/api/businesses/geocode/</span></h2>
+    <p class="desc">Convert coordinates to city + province using Google Geocoding. No auth required.</p>
+
+    <h3>GET /api/businesses/geocode/</h3>
+    <div class="fields">
+      <input v-model.number="geoLat" type="number" step="0.0001" placeholder="lat (e.g. 43.651)" />
+      <input v-model.number="geoLng" type="number" step="0.0001" placeholder="lng (e.g. -79.347)" />
+      <button @click="callGeocode" :disabled="geoLat == null || geoLng == null">Lookup</button>
+    </div>
+
+    <div v-if="geoResult" class="ai-generated" style="margin:10px 0">
+      <strong>{{ geoResult.city }}, {{ geoResult.province_code }}</strong>
+      <p style="margin:4px 0 0;color:#94a3b8;font-size:12px">{{ geoResult.formatted_address }} · {{ geoResult.country }}</p>
+    </div>
+
+    <ResponseBox :data="res.geocode" />
+  </section>
+
 </div>
 </template>
 
@@ -424,6 +447,7 @@ import {
   getAIReviewSessions, startAIReview, sendAIReviewMessage,
   generateAIReview, confirmAIReview, abandonAIReview,
   getPersonalized,
+  reverseGeocode,
 } from '../api/client'
 
 // ── Shared response store — every endpoint writes here for display ────────────
@@ -437,6 +461,7 @@ const res = reactive({
   checkBookmark: null, deleteBookmark: null,
   aiSessions: null, aiStart: null, aiMessage: null, aiGenerate: null, aiConfirm: null,
   personalized: null,
+  geocode: null,
 })
 
 /** Call an API and store result or error in res[key]. */
@@ -745,6 +770,15 @@ const callPersonalized = async () => {
     persResults.value = res.personalized?.results || []
   }
   persLoading.value = false
+}
+
+// ── Geocode ───────────────────────────────────────────────────────────────────
+const geoLat = ref(null); const geoLng = ref(null); const geoResult = ref(null)
+
+const callGeocode = async () => {
+  geoResult.value = null
+  await call('geocode', () => reverseGeocode(geoLat.value, geoLng.value))
+  if (!res.geocode?._error) geoResult.value = res.geocode
 }
 
 // ── On mount ──────────────────────────────────────────────────────────────────
