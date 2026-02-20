@@ -12,44 +12,49 @@ How to deploy FBLC to a cloud server. This guide uses Google Compute Engine (GCE
 | Region | `northamerica-northeast2-b` |
 | External IP | `34.130.223.201` |
 | Domain | `orbitcentral.ca` |
-| Frontend + API | `http://orbitcentral.ca` |
-| Admin panel | `http://orbitcentral.ca/admin/` |
-| DB portal (Adminer) | `http://admin.orbitcentral.ca` |
-| Task monitor (Flower) | `http://flower.orbitcentral.ca` |
+| Frontend + API | `https://orbitcentral.ca` |
+| API (external) | `https://business.orbitcentral.ca` |
+| Admin panel | `https://business.orbitcentral.ca/admin/` |
+| DB portal (Adminer) | `https://admin.orbitcentral.ca` |
+| Task monitor (Flower) | `https://flower.orbitcentral.ca` |
 
 ### DNS Records
 
 | Type | Name | Value |
 |------|------|-------|
 | A | `orbitcentral.ca` | `34.130.223.201` |
+| A | `business.orbitcentral.ca` | `34.130.223.201` |
 | A | `admin.orbitcentral.ca` | `34.130.223.201` |
 | A | `flower.orbitcentral.ca` | `34.130.223.201` |
 
 ## What Gets Deployed
 
-Seven Docker containers run together:
+Eight Docker containers run together:
 
 ```
 Internet
   │
-  ▼  :80
-[ Nginx ] ── virtual-host routing
-  ├── orbitcentral.ca         → Vue SPA + /api/ → [ Django/Gunicorn :8000 ] → [ PostgreSQL :5432 ]
-  ├── admin.orbitcentral.ca   → [ Adminer :8080 ]                            (pgvector + PostGIS)
-  ├── flower.orbitcentral.ca  → [ Flower :5555 ]
-  └── unknown Host           → 444 (drop)
-                                       │
-                           task.delay() │
-                                       ▼
-                                 [ Redis :6379 ] → [ Celery Worker ]
+  ▼  :80 (→ 301 HTTPS)  :443 (SSL/TLS)
+[ Nginx ] ── virtual-host routing ── [ Certbot ] (cert renewal)
+  ├── orbitcentral.ca          → Vue SPA + /api/ → [ Django/Gunicorn :8000 ] → [ PostgreSQL :5432 ]
+  ├── business.orbitcentral.ca → Django REST API + /admin/                      (pgvector + PostGIS)
+  ├── admin.orbitcentral.ca    → [ Adminer :8080 ]
+  ├── flower.orbitcentral.ca   → [ Flower :5555 ]
+  └── unknown Host             → 444 (drop)
+                                          │
+                              task.delay() │
+                                          ▼
+                                    [ Redis :6379 ] → [ Celery Worker ]
 ```
 
-- **Nginx** — virtual-host reverse proxy; builds Vue frontend into the image; serves static files
+- **Nginx** — HTTPS termination + virtual-host reverse proxy; builds Vue frontend into the image
+- **Certbot** — Let's Encrypt certificate issuance and renewal
 - **Django/Gunicorn** — runs the Python API (3 workers, 2 threads each)
 - **PostgreSQL** — stores all data (with pgvector for AI search, PostGIS for geography)
 - **Redis** — message broker for Celery background tasks
 - **Celery Worker** — processes background tasks (Google Places import, AI classification)
 - **Flower** — web dashboard for monitoring Celery tasks (port 5555)
+- **Adminer** — database web portal
 
 ## Prerequisites
 
@@ -97,10 +102,16 @@ Fill in **all** the values. The important ones:
 |----------|------------|
 | `DJANGO_SECRET_KEY` | A long random string (generate one below) |
 | `PG_PASSWORD` | A strong database password |
-| `ALLOWED_HOSTS` | Your domain, e.g. `orbitcentral.ca,34.130.223.201,localhost` |
-| `CORS_ALLOWED_ORIGINS` | Your frontend URL, e.g. `http://orbitcentral.ca` |
+| `ALLOWED_HOSTS` | `orbitcentral.ca,business.orbitcentral.ca,34.130.223.201,localhost` |
+| `CORS_ALLOWED_ORIGINS` | `https://orbitcentral.ca,https://business.orbitcentral.ca` |
+| `CSRF_TRUSTED_ORIGINS` | `https://orbitcentral.ca,https://business.orbitcentral.ca` |
+| `FRONTEND_BASE_URL` | `https://orbitcentral.ca` |
+| `SECURE_SSL_REDIRECT` | `true` (after SSL certs are set up) |
+| `CERTBOT_EMAIL` | Your email for Let's Encrypt notifications |
 | `OPENAI_API_KEY` | Your OpenAI key (for semantic search) |
 | `GOOGLE_PLACES_API_KEY` | Your Google Places API key (for auto-import) |
+| `RECAPTCHA_SECRET_KEY` | Google reCAPTCHA v3 secret key (leave empty to disable) |
+| `RECAPTCHA_SCORE_THRESHOLD` | Minimum score to pass (default: `0.5`) |
 
 **Generate a Django secret key:**
 ```bash
@@ -218,83 +229,74 @@ gunzip -c ~/backups/fblc_20250101.sql.gz | \
 
 ## GCE Firewall Rules
 
-Only port 80 needs to be open — all services (API, Adminer, Flower) route through Nginx virtual hosts:
+Ports 80 and 443 must be open — HTTP redirects to HTTPS:
 ```bash
 gcloud compute firewall-rules create allow-http \
   --allow tcp:80 --target-tags http-server
+gcloud compute firewall-rules create allow-https \
+  --allow tcp:443 --target-tags https-server
+gcloud compute instances add-tags fblc \
+  --tags http-server,https-server \
+  --zone northamerica-northeast2-b
 ```
 
-Ensure the instance has the `http-server` network tag:
+## Setting Up HTTPS (SSL)
+
+HTTPS is handled by a **certbot Docker container** that obtains and renews Let's Encrypt certificates. No need to install certbot on the host.
+
+### 1. Set `CERTBOT_EMAIL` in `.env`
 ```bash
-gcloud compute instances add-tags fblc --tags http-server --zone northamerica-northeast2-b
+CERTBOT_EMAIL=your-email@example.com
 ```
 
-## Setting Up HTTPS (When Ready)
-
-Once you're ready for production/beta:
-
-### 1. Install Certbot
-```bash
-sudo apt install -y certbot
-sudo docker compose down
-sudo certbot certonly --standalone \
-  -d orbitcentral.ca \
-  -d admin.orbitcentral.ca \
-  -d flower.orbitcentral.ca
-```
-
-### 2. Update Nginx Config
-Add SSL server blocks to `nginx/nginx.conf` for each domain:
-```nginx
-server {
-    listen 443 ssl;
-    server_name orbitcentral.ca;
-
-    ssl_certificate     /etc/letsencrypt/live/orbitcentral.ca/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/orbitcentral.ca/privkey.pem;
-
-    # ... existing location blocks ...
-}
-
-server {
-    listen 80;
-    server_name orbitcentral.ca admin.orbitcentral.ca flower.orbitcentral.ca;
-    return 301 https://$host$request_uri;
-}
-```
-
-### 3. Update Environment
-In `.env`:
-```
-SECURE_SSL_REDIRECT=true
-ALLOWED_HOSTS=orbitcentral.ca,34.130.223.201,localhost
-CORS_ALLOWED_ORIGINS=https://orbitcentral.ca
-```
-
-### 4. Mount Certificates in Docker
-Add to the nginx service in `docker-compose.yml`:
-```yaml
-volumes:
-  - /etc/letsencrypt:/etc/letsencrypt:ro
-```
-
-### 5. Rebuild
-```bash
-sudo docker compose up -d --build
-```
-
-### 6. Open Port 443
+### 2. Open Port 443 on GCE (if not already done)
 ```bash
 gcloud compute firewall-rules create allow-https \
   --allow tcp:443 --target-tags https-server
 gcloud compute instances add-tags fblc --tags https-server --zone northamerica-northeast2-b
 ```
 
-### 7. Auto-renew Certificates
+### 3. Run SSL Init
+```bash
+make ssl-init
+```
+
+This will:
+1. Create placeholder self-signed certs so nginx can start
+2. Start nginx (serves HTTP + placeholder HTTPS)
+3. Request real certs from Let's Encrypt via ACME webroot challenge
+4. Reload nginx with the real Let's Encrypt certs
+
+### 4. Update `.env` for HTTPS
+```bash
+CORS_ALLOWED_ORIGINS=https://orbitcentral.ca,https://business.orbitcentral.ca
+CSRF_TRUSTED_ORIGINS=https://orbitcentral.ca,https://business.orbitcentral.ca
+FRONTEND_BASE_URL=https://orbitcentral.ca
+SECURE_SSL_REDIRECT=true
+```
+
+### 5. Rebuild with HTTPS Settings
+```bash
+docker compose up -d --build
+```
+
+### 6. Certificate Renewal
+
+Certificates expire every 90 days. Renew manually:
+```bash
+make ssl-renew
+```
+
+Or add a cron job for automatic renewal:
 ```bash
 sudo crontab -e
-# Add this line:
-0 3 * * * certbot renew --quiet && docker compose -f ~/FBLC/docker-compose.yml restart nginx
+# Add this line (renew daily at 3am, only acts when certs are near expiry):
+0 3 * * * cd /home/$USER/FBLC && docker compose run --rm certbot renew && docker compose exec nginx nginx -s reload
+```
+
+### 7. Check Certificate Status
+```bash
+make ssl-status
 ```
 
 ## Using Supabase Instead of Local PostgreSQL

@@ -11,6 +11,8 @@ from rest_framework.response import Response
 
 from ..models import EmailVerificationToken, PasswordResetToken, Review, UserProfile
 from ..serializers import RegisterSerializer, UserProfileSerializer
+from ..services.captcha import verify_captcha
+from ..authentication import AUTH_COOKIE_NAME, AUTH_COOKIE_MAX_AGE
 from ..tasks import send_password_reset_email_task, send_verification_email_task
 
 User = get_user_model()
@@ -42,6 +44,10 @@ class AuthViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny],
             url_path='register')
     def register(self, request):
+        captcha = verify_captcha(request.data.get('captcha_token', ''), expected_action='register')
+        if not captcha['success']:
+            return Response({'detail': captcha['error']}, status=status.HTTP_400_BAD_REQUEST)
+
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
@@ -53,17 +59,23 @@ class AuthViewSet(viewsets.GenericViewSet):
             send_verification_email_task, user.id, vtoken.token
         )
 
-        return Response({
+        response = Response({
             'token': token.key,
             'user': UserProfileSerializer(user.profile).data,
             'detail': 'Account created.',
             'email': email_result,
         }, status=status.HTTP_201_CREATED)
+        self._set_auth_cookie(response, token.key)
+        return response
 
     # ── Login ──────────────────────────────────────────────────────────────
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny],
             url_path='login')
     def login(self, request):
+        captcha = verify_captcha(request.data.get('captcha_token', ''), expected_action='login')
+        if not captcha['success']:
+            return Response({'detail': captcha['error']}, status=status.HTTP_400_BAD_REQUEST)
+
         from django.contrib.auth import authenticate
 
         username = request.data.get('username', '').strip()
@@ -86,10 +98,12 @@ class AuthViewSet(viewsets.GenericViewSet):
         token, _ = Token.objects.get_or_create(user=user)
         profile, _ = UserProfile.objects.get_or_create(user=user)
 
-        return Response({
+        response = Response({
             'token': token.key,
             'user': UserProfileSerializer(profile).data,
         })
+        self._set_auth_cookie(response, token.key)
+        return response
 
     # ── Verify Email ───────────────────────────────────────────────────────
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny],
@@ -132,9 +146,11 @@ class AuthViewSet(viewsets.GenericViewSet):
     @action(detail=False, methods=['post'], permission_classes=[permissions.IsAuthenticated],
             url_path='logout')
     def logout(self, request):
-        """Delete the current auth token (server-side logout)."""
+        """Delete the current auth token and clear the auth cookie."""
         Token.objects.filter(user=request.user).delete()
-        return Response({'detail': 'Logged out successfully.'}, status=status.HTTP_200_OK)
+        response = Response({'detail': 'Logged out successfully.'}, status=status.HTTP_200_OK)
+        response.delete_cookie(AUTH_COOKIE_NAME, path='/', samesite='Lax')
+        return response
 
     # ── Me (profile) ───────────────────────────────────────────────────────
     @action(detail=False, methods=['get', 'patch', 'delete'], permission_classes=[permissions.IsAuthenticated],
@@ -214,6 +230,22 @@ class AuthViewSet(viewsets.GenericViewSet):
             logger.warning("Email task failed: %s", exc)
             return {'status': 'error', 'reason': str(exc)}
 
+    # ── Helper: set/clear auth cookie ──────────────────────────────────────
+    @staticmethod
+    def _set_auth_cookie(response, token_key):
+        """Set HttpOnly auth cookie on the response."""
+        import os
+        secure = os.environ.get('SECURE_SSL_REDIRECT', 'false').lower() == 'true'
+        response.set_cookie(
+            AUTH_COOKIE_NAME,
+            token_key,
+            max_age=AUTH_COOKIE_MAX_AGE,
+            httponly=True,
+            secure=secure,
+            samesite='Lax',
+            path='/',
+        )
+
     # ── Forgot Password ───────────────────────────────────────────────────
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny],
             url_path='forgot-password')
@@ -222,6 +254,10 @@ class AuthViewSet(viewsets.GenericViewSet):
         Request a password-reset email.
         Always returns 200 regardless of whether the email exists (prevents enumeration).
         """
+        captcha = verify_captcha(request.data.get('captcha_token', ''), expected_action='forgot_password')
+        if not captcha['success']:
+            return Response({'detail': captcha['error']}, status=status.HTTP_400_BAD_REQUEST)
+
         email = request.data.get('email', '').strip().lower()
         if not email:
             return Response(

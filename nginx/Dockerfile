@@ -22,5 +22,17 @@ RUN npm run build \
 
 # ── Stage 2: Nginx ───────────────────────────────────────────────────────────
 FROM nginx:1.27-alpine
+
+# Install openssl for self-signed default cert
+RUN apk add --no-cache openssl
+
 COPY --from=frontend-build /build/dist /app/frontend
 COPY nginx/.htpasswd /etc/nginx/.htpasswd
+COPY nginx/ssl/ssl-params.conf /etc/nginx/ssl/ssl-params.conf
+
+# Generate self-signed cert for the default_server (rejects unknown hosts)
+RUN mkdir -p /etc/nginx/ssl \
+    && openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
+       -keyout /etc/nginx/ssl/default.key \
+       -out /etc/nginx/ssl/default.crt \
+       -subj '/CN=localhost'
