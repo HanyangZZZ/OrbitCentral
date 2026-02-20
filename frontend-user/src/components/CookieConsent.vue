@@ -18,8 +18,9 @@
     <div v-if="visible" class="consent-backdrop">
       <div class="consent-box">
         <p class="consent-text">
-          <strong>Cookie Notice</strong> — We use a single cookie solely to keep
-          you logged in. No tracking, no ads, no third parties.
+          <strong>Cookie Notice</strong> — We use minimal browser storage solely
+          to keep you logged in. No tracking, no ads, no third parties.
+          If you decline, you will be logged out on each visit.
         </p>
         <div class="consent-actions">
           <button class="btn-consent btn-accept" @click="accept">Accept</button>
@@ -32,6 +33,7 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { setAuthToken } from '@/api/core'
 
 const STORAGE_KEY = 'cookie_consent'
 const visible = ref(false)
@@ -49,9 +51,13 @@ function accept() {
 }
 
 function decline() {
+  // Clear any stored auth token so the user is logged out
+  setAuthToken(null)
   // Don't persist — banner will reappear on next visit
   localStorage.removeItem(STORAGE_KEY)
   visible.value = false
+  // Reload so the app picks up the cleared auth state
+  window.location.reload()
 }
 </script>
 
