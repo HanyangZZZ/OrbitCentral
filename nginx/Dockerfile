@@ -1,32 +1,38 @@
 # =============================================================================
-# Nginx + Frontend build
-# Stage 1: Build Vue SPA with Node
-# Stage 2: Serve with Nginx (also proxies API, Adminer, Flower)
+# Nginx + Frontend builds
+# Stage 1: Build user-facing SPA (orbitcentral.ca)      from frontend-user/
+# Stage 2: Build API demo SPA   (test.orbitcentral.ca)  from frontend/
+# Stage 3: Serve both with Nginx
 # =============================================================================
 
-# ── Stage 1: Build frontend ──────────────────────────────────────────────────
-FROM node:20-alpine AS frontend-build
+# ── Stage 1: Build user frontend (orbitcentral.ca) ───────────────────────────
+FROM node:20-alpine AS user-build
+WORKDIR /build
+COPY frontend-user/package.json frontend-user/package-lock.json ./
+RUN npm ci --ignore-scripts
+COPY frontend-user/ .
+RUN grep -q 'src="/src/main.js"' index.html \
+    || (echo "ERROR: frontend-user/index.html missing /src/main.js entry" && exit 1)
+RUN npm run build && echo "User frontend build complete."
+
+# ── Stage 2: Build API demo frontend (test.orbitcentral.ca) ──────────────────
+FROM node:20-alpine AS demo-build
 WORKDIR /build
 COPY frontend/package.json frontend/package-lock.json ./
 RUN npm ci --ignore-scripts
 COPY frontend/ .
-
-# Guard: index.html must reference source entry point, not a previous build artifact.
-# If this fails, the source index.html was overwritten by a dist/index.html.
 RUN grep -q 'src="/src/main.js"' index.html \
-    || (echo "ERROR: index.html does not reference /src/main.js — it may have been overwritten by a build artifact." && exit 1)
+    || (echo "ERROR: frontend/index.html missing /src/main.js entry" && exit 1)
+RUN npm run build && echo "API demo frontend build complete."
 
-RUN npm run build \
-    && MODULES=$(grep -oP '\d+(?= modules transformed)' /tmp/build.log 2>/dev/null || echo '') \
-    && echo "Build complete."
-
-# ── Stage 2: Nginx ───────────────────────────────────────────────────────────
+# ── Stage 3: Nginx ───────────────────────────────────────────────────────────
 FROM nginx:1.27-alpine
 
 # Install openssl for self-signed default cert
 RUN apk add --no-cache openssl
 
-COPY --from=frontend-build /build/dist /app/frontend
+COPY --from=user-build /build/dist /app/frontend
+COPY --from=demo-build /build/dist /app/frontend-demo
 COPY nginx/.htpasswd /etc/nginx/.htpasswd
 COPY nginx/ssl/ssl-params.conf /etc/nginx/ssl/ssl-params.conf
 
