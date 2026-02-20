@@ -75,9 +75,9 @@ services:
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
       # Brevo (transactional email)
       BREVO_API_KEY: ${BREVO_API_KEY:-}
-      BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-hanyang.zhuo1219@gmail.com}
+      BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-noreply@orbitcentral.ca}
       BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-Orbit}
-      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://orbitcentral.ca}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-https://orbitcentral.ca}
       CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
       # reCAPTCHA v3 (leave empty to disable)
       RECAPTCHA_SECRET_KEY: ${RECAPTCHA_SECRET_KEY:-}
@@ -124,9 +124,9 @@ services:
       GOOGLE_PLACES_API_KEY: ${GOOGLE_PLACES_API_KEY:-}
       # Brevo (transactional email)
       BREVO_API_KEY: ${BREVO_API_KEY:-}
-      BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-hanyang.zhuo1219@gmail.com}
+      BREVO_SENDER_EMAIL: ${BREVO_SENDER_EMAIL:-noreply@orbitcentral.ca}
       BREVO_SENDER_NAME: ${BREVO_SENDER_NAME:-Orbit}
-      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-http://orbitcentral.ca}
+      FRONTEND_BASE_URL: ${FRONTEND_BASE_URL:-https://orbitcentral.ca}
       CSRF_TRUSTED_ORIGINS: ${CSRF_TRUSTED_ORIGINS:-}
     volumes:
       - django_logs:/app/logs

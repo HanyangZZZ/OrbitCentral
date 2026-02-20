@@ -56,9 +56,9 @@ def verify_captcha(token: str, expected_action: str | None = None) -> dict:
         }, timeout=5)
         data = resp.json()
     except Exception as exc:
-        logger.warning('reCAPTCHA verification request failed: %s', exc)
-        # Fail open — don't block users if Google is unreachable
-        return {'success': True, 'score': None, 'error': None}
+        logger.error('reCAPTCHA verification request failed: %s', exc)
+        # Fail closed — block request if Google is unreachable
+        return {'success': False, 'score': None, 'error': 'Captcha service unavailable. Please try again.'}
 
     # ── Basic success check (both v2 and v3) ───────────────────────────
     if not data.get('success'):

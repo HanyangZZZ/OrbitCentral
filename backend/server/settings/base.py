@@ -128,9 +128,11 @@ REST_FRAMEWORK = {
     'EXCEPTION_HANDLER': 'api.exceptions.custom_exception_handler',
     'DEFAULT_THROTTLE_CLASSES': [
         'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
     ],
     'DEFAULT_THROTTLE_RATES': {
         'anon': '200/hour',
+        'user': '500/hour',
     },
 }
 
@@ -174,7 +176,7 @@ LOGGING = {
 
 # ── Brevo (transactional email) ────────────────────────────────────────────
 BREVO_API_KEY = os.environ.get('BREVO_API_KEY', '')
-BREVO_SENDER_EMAIL = os.environ.get('BREVO_SENDER_EMAIL', 'hanyang.zhuo1219@gmail.com')
+BREVO_SENDER_EMAIL = os.environ.get('BREVO_SENDER_EMAIL', 'noreply@orbitcentral.ca')
 BREVO_SENDER_NAME = os.environ.get('BREVO_SENDER_NAME', 'Orbit')
 
 # Base URL used in verification emails (overridden per environment)
