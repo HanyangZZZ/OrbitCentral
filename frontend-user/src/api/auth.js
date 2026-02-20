@@ -18,8 +18,8 @@ import api from './core'
 import { hasCookieConsent } from '@/components/CookieConsent.vue'
 
 // ── Account creation & login ─────────────────────────────────────────────
-export const register       = (payload)             => api.post('/auth/register/', { ...payload, cookie_consent: hasCookieConsent() })
-export const login          = (username, password)   => api.post('/auth/login/', { username, password, cookie_consent: hasCookieConsent() })
+export const register       = (payload, captchaToken = '')  => api.post('/auth/register/', { ...payload, cookie_consent: hasCookieConsent(), captcha_token: captchaToken })
+export const login          = (username, password, captchaToken = '') => api.post('/auth/login/', { username, password, cookie_consent: hasCookieConsent(), captcha_token: captchaToken })
 
 // ── Email verification ───────────────────────────────────────────────────
 export const verifyEmail    = (token)                => api.post('/auth/verify-email/', { token })
@@ -32,5 +32,5 @@ export const updateMe       = (payload)              => api.patch('/auth/me/', p
 // ── Session & security ──────────────────────────────────────────────────
 export const logout         = ()                     => api.post('/auth/logout/')
 export const deleteAccount  = ()                     => api.delete('/auth/me/')
-export const forgotPassword = (email)                => api.post('/auth/forgot-password/', { email })
+export const forgotPassword = (email, captchaToken = '') => api.post('/auth/forgot-password/', { email, captcha_token: captchaToken })
 export const resetPassword  = (token, newPassword)   => api.post('/auth/reset-password/', { token, new_password: newPassword })
