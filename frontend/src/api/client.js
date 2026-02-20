@@ -210,6 +210,43 @@ export const checkBookmark = (businessId) => api.get('/bookmarks/check/', { para
 /** Get all bookmarked business IDs. Returns { business_ids: number[] } */
 export const getBookmarkIds = () => api.get('/bookmarks/ids/')
 
+// ── AI Reviews ────────────────────────────────────────────────────────────────
+/** List user's AI review chat sessions. Auth required. */
+export const getAIReviewSessions = () => api.get('/ai-reviews/')
+/** Get a specific AI review chat session by UUID. */
+export const getAIReviewSession = (id) => api.get(`/ai-reviews/${id}/`)
+/**
+ * Start a new AI-guided review chat.
+ * POST /api/ai-reviews/start/  {business, rating}
+ * Returns session with AI's opening message.
+ */
+export const startAIReview = (businessId, rating) =>
+  api.post('/ai-reviews/start/', { business: businessId, rating })
+/**
+ * Send a message in an AI review chat.
+ * POST /api/ai-reviews/:id/message/  {message}
+ * Returns { reply, tags_added, tags_removed, session }
+ */
+export const sendAIReviewMessage = (sessionId, message) =>
+  api.post(`/ai-reviews/${sessionId}/message/`, { message })
+/**
+ * Generate the final review text from the conversation.
+ * POST /api/ai-reviews/:id/generate/
+ * Returns { generated_description, session }
+ */
+export const generateAIReview = (sessionId) =>
+  api.post(`/ai-reviews/${sessionId}/generate/`)
+/**
+ * Confirm and create the actual Review from the AI session.
+ * POST /api/ai-reviews/:id/confirm/
+ * Returns { review, tags_added, tags_removed }
+ */
+export const confirmAIReview = (sessionId) =>
+  api.post(`/ai-reviews/${sessionId}/confirm/`)
+/** Abandon an AI review session. DELETE /api/ai-reviews/:id/ */
+export const abandonAIReview = (sessionId) =>
+  api.delete(`/ai-reviews/${sessionId}/`)
+
 // ── Pagination helper ─────────────────────────────────────────────────────────
 /**
  * Fetch the next page from a cursor-paginated response.

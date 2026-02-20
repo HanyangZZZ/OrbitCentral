@@ -5,7 +5,7 @@
 # Run "make help" to see all commands.
 # =============================================================================
 
-.PHONY: help build up down restart logs django-shell db-shell migrate createsuperuser status backup celery-logs celery-restart flower
+.PHONY: help build up down restart logs django-shell db-shell migrate createsuperuser status backup celery-logs celery-restart flower deploy-frontend
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
@@ -101,6 +101,21 @@ celery-inspect: ## Show active Celery tasks
 flower: ## Open Flower dashboard (starts if not running)
 	@echo "Flower dashboard: http://localhost:5555"
 	@docker compose up -d flower
+
+# ── Frontend / Nginx deploy ──────────────────────────────────────────────────
+deploy-frontend: ## Rebuild and deploy the frontend (nginx)
+	@echo "Validating frontend source..."
+	@grep -q 'src="/src/main.js"' frontend/index.html \
+		|| (echo "\033[31mERROR: frontend/index.html is corrupted — missing /src/main.js entry point.\033[0m" && exit 1)
+	@echo "Building nginx (--no-cache)..."
+	docker compose build --no-cache nginx
+	@echo "Restarting nginx..."
+	docker compose up -d nginx
+	@echo "Verifying build output..."
+	@JS_FILE=$$(docker compose exec nginx ls /app/frontend/assets/ | grep '\.js$$' | head -1) \
+		&& docker compose exec nginx grep -q 'createApp' /app/frontend/assets/$$JS_FILE \
+		&& echo "\033[32m✓ Frontend deployed successfully.\033[0m" \
+		|| (echo "\033[31m✗ Build verification failed — JS bundle may be corrupt.\033[0m" && exit 1)
 
 # ── Cleanup ──────────────────────────────────────────────────────────────────
 clean: ## Remove containers, volumes, and images

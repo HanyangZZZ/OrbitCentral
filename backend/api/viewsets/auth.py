@@ -49,12 +49,15 @@ class AuthViewSet(viewsets.GenericViewSet):
         token, _ = Token.objects.get_or_create(user=user)
 
         vtoken = EmailVerificationToken.create_for_user(user)
-        send_verification_email_task.delay(user.id, vtoken.token)
+        email_result = self._send_email_sync(
+            send_verification_email_task, user.id, vtoken.token
+        )
 
         return Response({
             'token': token.key,
             'user': UserProfileSerializer(user.profile).data,
-            'detail': 'Account created. Verification email sent.',
+            'detail': 'Account created.',
+            'email': email_result,
         }, status=status.HTTP_201_CREATED)
 
     # ── Login ──────────────────────────────────────────────────────────────
@@ -185,9 +188,31 @@ class AuthViewSet(viewsets.GenericViewSet):
         EmailVerificationToken.objects.filter(user=request.user, used=False).update(used=True)
 
         vtoken = EmailVerificationToken.create_for_user(request.user)
-        send_verification_email_task.delay(request.user.id, vtoken.token)
+        email_result = self._send_email_sync(
+            send_verification_email_task, request.user.id, vtoken.token
+        )
 
-        return Response({'detail': 'Verification email resent.'})
+        resp_status = status.HTTP_200_OK if email_result.get('status') == 'sent' else status.HTTP_502_BAD_GATEWAY
+        return Response({
+            'detail': 'Verification email sent.' if email_result.get('status') == 'sent' else 'Failed to send verification email.',
+            'email': email_result,
+        }, status=resp_status)
+
+    # ── Helper: synchronous email send ───────────────────────────────────
+    @staticmethod
+    def _send_email_sync(task_func, *args):
+        """
+        Run the Celery email task **in-process** (no broker roundtrip) so the
+        result is available immediately.  Brevo API typically responds in 1-2 s.
+        """
+        try:
+            result = task_func.apply(args=args)
+            if result.successful():
+                return result.result
+            return {'status': 'error', 'reason': str(result.result)}
+        except Exception as exc:
+            logger.warning("Email task failed: %s", exc)
+            return {'status': 'error', 'reason': str(exc)}
 
     # ── Forgot Password ───────────────────────────────────────────────────
     @action(detail=False, methods=['post'], permission_classes=[permissions.AllowAny],
@@ -204,16 +229,20 @@ class AuthViewSet(viewsets.GenericViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        email_result = None
         try:
             user = User.objects.get(email__iexact=email)
             PasswordResetToken.objects.filter(user=user, used=False).update(used=True)
             rtoken = PasswordResetToken.create_for_user(user)
-            send_password_reset_email_task.delay(user.id, rtoken.token)
+            email_result = self._send_email_sync(
+                send_password_reset_email_task, user.id, rtoken.token
+            )
         except User.DoesNotExist:
             pass
 
         return Response({
             'detail': 'If an account with that email exists, a reset link has been sent.',
+            'email': email_result,
         })
 
     # ── Reset Password ─────────────────────────────────────────────────────

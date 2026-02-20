@@ -70,8 +70,11 @@ class ReviewSerializer(serializers.ModelSerializer):
         if request and request.method == 'POST':
             user = request.user
             business = attrs.get('business')
-            if business and Review.objects.filter(user=user, business=business).exists():
-                raise serializers.ValidationError(
-                    'You have already reviewed this business. Edit or delete your existing review.'
-                )
+            if business:
+                existing = Review.objects.filter(user=user, business=business).first()
+                if existing:
+                    raise serializers.ValidationError({
+                        'detail': 'You have already reviewed this business. Edit or delete your existing review.',
+                        'existing_review_id': existing.id,
+                    })
         return attrs

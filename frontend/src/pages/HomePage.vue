@@ -12,6 +12,7 @@
       <a href="#auth">Auth</a>
       <a href="#reviews">Reviews</a>
       <a href="#bookmarks">Bookmarks</a>
+      <a href="#ai-reviews">AI Reviews</a>
     </nav>
   </header>
 
@@ -292,6 +293,78 @@
     <ResponseBox :data="res.deleteBookmark" />
   </section>
 
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <!-- AI REVIEWS                                                         -->
+  <!-- ════════════════════════════════════════════════════════════════════ -->
+  <section id="ai-reviews" class="endpoint">
+    <h2>AI Reviews <span class="params">/api/ai-reviews/*</span></h2>
+    <p class="desc">GPT-5 powered conversational review writer. Chat naturally, AI adds/removes tags, then generates a polished review.<br/>
+      Flow: <strong>Start</strong> → <strong>Message</strong> (repeat) → <strong>Generate</strong> → <strong>Confirm</strong>. Auth + verified email required.</p>
+
+    <h3>GET /api/ai-reviews/ <span class="params">(auth + verified)</span></h3>
+    <p class="desc">List your AI review chat sessions.</p>
+    <div class="actions"><button @click="callAISessions">Run</button></div>
+    <ResponseBox :data="res.aiSessions" />
+
+    <h3>POST /api/ai-reviews/start/ <span class="params">(auth + verified)</span></h3>
+    <p class="desc">Start a new AI-guided review. Returns session with AI's opening message.</p>
+    <div class="fields">
+      <input v-model.number="aiStartBiz" type="number" placeholder="business ID" />
+      <select v-model.number="aiStartRating">
+        <option :value="0" disabled>rating</option>
+        <option v-for="n in 5" :key="n" :value="n">{{ n }} star{{ n > 1 ? 's' : '' }}</option>
+      </select>
+      <button @click="doAIStart" :disabled="!aiStartBiz || !aiStartRating">Start Chat</button>
+    </div>
+    <ResponseBox :data="res.aiStart" />
+
+    <!-- Chat interface -->
+    <template v-if="aiSessionId">
+      <div class="ai-chat-header">
+        <strong>Session:</strong> <code>{{ aiSessionId.slice(0, 8) }}...</code>
+        <span v-if="aiSessionBiz" class="meta"> — {{ aiSessionBiz }}</span>
+        <button @click="doAIAbandon" class="small danger" style="margin-left:auto">Abandon</button>
+      </div>
+
+      <div class="ai-chat-box">
+        <div v-for="(m, i) in aiConversation" :key="i" :class="['ai-msg', m.role]">
+          <span class="ai-role">{{ m.role === 'assistant' ? 'AI' : 'You' }}</span>
+          <span class="ai-text">{{ m.content }}</span>
+        </div>
+      </div>
+
+      <div v-if="aiTagsAdded.length || aiTagsRemoved.length" class="ai-tags-info">
+        <span v-if="aiTagsAdded.length" class="tag-added">+{{ aiTagsAdded.join(', +') }}</span>
+        <span v-if="aiTagsRemoved.length" class="tag-removed">-{{ aiTagsRemoved.join(', -') }}</span>
+      </div>
+
+      <h3>POST /api/ai-reviews/:id/message/ <span class="params">(auth + verified)</span></h3>
+      <div class="fields">
+        <input v-model="aiMessage" placeholder="Type your reply..." class="wide" @keyup.enter="doAISend" />
+        <button @click="doAISend" :disabled="!aiMessage || aiSending">{{ aiSending ? 'Sending...' : 'Send' }}</button>
+      </div>
+      <ResponseBox :data="res.aiMessage" />
+
+      <h3>POST /api/ai-reviews/:id/generate/ <span class="params">(auth + verified)</span></h3>
+      <p class="desc">When the chat feels complete, generate the review text.</p>
+      <div class="actions">
+        <button @click="doAIGenerate" :disabled="aiSending">{{ aiSending ? 'Generating...' : 'Generate Review' }}</button>
+      </div>
+      <div v-if="aiGeneratedDesc" class="ai-generated">
+        <strong>Generated review:</strong>
+        <p>{{ aiGeneratedDesc }}</p>
+      </div>
+      <ResponseBox :data="res.aiGenerate" />
+
+      <h3>POST /api/ai-reviews/:id/confirm/ <span class="params">(auth + verified)</span></h3>
+      <p class="desc">Happy with the review? Confirm to create the actual Review and apply all tag changes.</p>
+      <div class="actions">
+        <button @click="doAIConfirm" :disabled="!aiGeneratedDesc" class="confirm-btn">Confirm &amp; Publish</button>
+      </div>
+      <ResponseBox :data="res.aiConfirm" />
+    </template>
+  </section>
+
 </div>
 </template>
 
@@ -304,6 +377,8 @@ import {
   forgotPassword, resetPassword, logout, setAuthToken, getSavedToken,
   getReviews, createReview, deleteReview, voteReview,
   getBookmarks, toggleBookmark, checkBookmark, deleteBookmark, getBookmarkIds,
+  getAIReviewSessions, startAIReview, sendAIReviewMessage,
+  generateAIReview, confirmAIReview, abandonAIReview,
 } from '../api/client'
 
 // ── Shared response store — every endpoint writes here for display ────────────
@@ -315,6 +390,7 @@ const res = reactive({
   reviews: null, createReview: null, deleteReview: null, voteReview: null,
   bookmarks: null, bookmarkIds: null, toggleBookmark: null,
   checkBookmark: null, deleteBookmark: null,
+  aiSessions: null, aiStart: null, aiMessage: null, aiGenerate: null, aiConfirm: null,
 })
 
 /** Call an API and store result or error in res[key]. */
@@ -532,6 +608,78 @@ const doCheckBookmark = () => call('checkBookmark', () => checkBookmark(checkBiz
 const deleteBookmarkId = ref(null)
 const doDeleteBookmark = () => call('deleteBookmark', () => deleteBookmark(deleteBookmarkId.value))
 
+// ── AI Reviews ────────────────────────────────────────────────────────────────
+const aiStartBiz = ref(null); const aiStartRating = ref(0)
+const aiSessionId = ref(''); const aiSessionBiz = ref('')
+const aiConversation = ref([]); const aiMessage = ref('')
+const aiSending = ref(false); const aiGeneratedDesc = ref('')
+const aiTagsAdded = ref([]); const aiTagsRemoved = ref([])
+
+const callAISessions = () => call('aiSessions', getAIReviewSessions)
+
+const doAIStart = async () => {
+  aiSending.value = true
+  await call('aiStart', () => startAIReview(aiStartBiz.value, aiStartRating.value))
+  aiSending.value = false
+  if (!res.aiStart?._error && res.aiStart?.id) {
+    aiSessionId.value = res.aiStart.id
+    aiSessionBiz.value = res.aiStart.business_name || ''
+    aiConversation.value = res.aiStart.conversation || []
+    aiTagsAdded.value = res.aiStart.tags_to_add || []
+    aiTagsRemoved.value = res.aiStart.tags_to_remove || []
+    aiGeneratedDesc.value = ''
+  }
+}
+
+const doAISend = async () => {
+  if (!aiMessage.value || aiSending.value) return
+  aiSending.value = true
+  const msg = aiMessage.value
+  aiMessage.value = ''
+  // Optimistic: show user message immediately
+  aiConversation.value.push({ role: 'user', content: msg })
+  await call('aiMessage', () => sendAIReviewMessage(aiSessionId.value, msg))
+  aiSending.value = false
+  if (!res.aiMessage?._error && res.aiMessage?.session) {
+    aiConversation.value = res.aiMessage.session.conversation || []
+    aiTagsAdded.value = res.aiMessage.session.tags_to_add || []
+    aiTagsRemoved.value = res.aiMessage.session.tags_to_remove || []
+  }
+}
+
+const doAIGenerate = async () => {
+  aiSending.value = true
+  await call('aiGenerate', () => generateAIReview(aiSessionId.value))
+  aiSending.value = false
+  if (!res.aiGenerate?._error && res.aiGenerate?.generated_description) {
+    aiGeneratedDesc.value = res.aiGenerate.generated_description
+  }
+}
+
+const doAIConfirm = async () => {
+  await call('aiConfirm', () => confirmAIReview(aiSessionId.value))
+  if (!res.aiConfirm?._error) {
+    // Reset the chat state
+    aiSessionId.value = ''
+    aiSessionBiz.value = ''
+    aiConversation.value = []
+    aiMessage.value = ''
+    aiGeneratedDesc.value = ''
+    aiTagsAdded.value = []
+    aiTagsRemoved.value = []
+  }
+}
+
+const doAIAbandon = async () => {
+  await call('aiConfirm', () => abandonAIReview(aiSessionId.value))
+  aiSessionId.value = ''
+  aiSessionBiz.value = ''
+  aiConversation.value = []
+  aiGeneratedDesc.value = ''
+  aiTagsAdded.value = []
+  aiTagsRemoved.value = []
+}
+
 // ── On mount ──────────────────────────────────────────────────────────────────
 onMounted(async () => {
   callStats(); callCategories(); callTags()
@@ -646,4 +794,22 @@ button.danger { color: #f87171; border-color: rgba(248,113,113,0.3); background:
 .result-body strong { color: #f8fafc; }
 .result-body .meta { color: #64748b; font-size: 11px; }
 .result-tags { display: flex; flex-wrap: wrap; gap: 3px; }
+
+/* AI Chat */
+.ai-chat-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: #1e293b; border-radius: 8px; margin: 12px 0 8px; font-size: 13px; }
+.ai-chat-header code { font-size: 11px; color: #64748b; }
+.ai-chat-box { display: flex; flex-direction: column; gap: 8px; padding: 12px; background: #0a1220; border: 1px solid #1e293b; border-radius: 8px; max-height: 400px; overflow-y: auto; margin: 8px 0; }
+.ai-msg { padding: 8px 12px; border-radius: 10px; max-width: 85%; font-size: 13px; line-height: 1.5; }
+.ai-msg.assistant { background: #1e293b; align-self: flex-start; color: #e2e8f0; }
+.ai-msg.user { background: rgba(99,102,241,0.2); align-self: flex-end; color: #c7d2fe; }
+.ai-role { font-size: 10px; font-weight: 600; text-transform: uppercase; color: #64748b; display: block; margin-bottom: 2px; }
+.ai-text { display: block; }
+.ai-tags-info { font-size: 12px; padding: 6px 12px; background: #1e293b; border-radius: 6px; margin: 6px 0; display: flex; gap: 8px; flex-wrap: wrap; }
+.tag-added { color: #4ade80; }
+.tag-removed { color: #f87171; }
+.ai-generated { padding: 12px; background: #1e293b; border-radius: 8px; margin: 8px 0; border-left: 3px solid #6366f1; }
+.ai-generated strong { font-size: 12px; color: #a5b4fc; }
+.ai-generated p { color: #e2e8f0; font-size: 13px; margin: 6px 0 0; line-height: 1.6; }
+.confirm-btn { background: rgba(74,222,128,0.15); color: #4ade80; border-color: rgba(74,222,128,0.3); }
+.confirm-btn:hover:not(:disabled) { background: rgba(74,222,128,0.25); }
 </style>
