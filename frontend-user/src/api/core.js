@@ -26,12 +26,17 @@ const api = axios.create({
 // The backend uses token-based auth. These helpers store/retrieve the
 // token from localStorage and attach it to every outgoing request.
 const TOKEN_KEY = 'fblc_auth_token'
+const CONSENT_KEY = 'cookie_consent'
 
 /** Save (or clear) the auth token in localStorage and Axios headers */
 export function setAuthToken(token) {
   if (token) {
-    localStorage.setItem(TOKEN_KEY, token)
+    // Always set the header so the current session works
     api.defaults.headers.common['Authorization'] = `Token ${token}`
+    // Only persist to localStorage if the user accepted cookie/storage consent
+    if (localStorage.getItem(CONSENT_KEY) === 'accepted') {
+      localStorage.setItem(TOKEN_KEY, token)
+    }
   } else {
     localStorage.removeItem(TOKEN_KEY)
     delete api.defaults.headers.common['Authorization']
