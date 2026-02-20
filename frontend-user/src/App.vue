@@ -1,19 +1,33 @@
+<!--
+  App.vue — Root Application Shell
+  ─────────────────────────────────────────────────────────────────────────────
+  This is the outermost component that wraps the entire Orbit app.
+
+  LAYOUT
+  ┌──────────────────────────────────────────┐
+  │  AppHeader (sticky top bar)              │
+  ├──────────────────────────────────────────┤
+  │  <RouterView />  ← current page swaps   │
+  │                     in here              │
+  └──────────────────────────────────────────┘
+
+  KEY DETAIL
+  • The `hideSearch` prop tells the header NOT to show its built-in search bar
+    on the Home page, because HomePage already renders its own HeroSearch.
+  ─────────────────────────────────────────────────────────────────────────────
+-->
 <template>
-  <VerifyEmailPage   v-if="page === 'verify-email'" />
-  <ResetPasswordPage v-else-if="page === 'reset-password'" />
-  <HomePage          v-else />
+  <AppHeader :hide-search="isHome" />
+  <RouterView />
 </template>
 
 <script setup>
 import { computed } from 'vue'
-import HomePage          from './pages/HomePage.vue'
-import VerifyEmailPage   from './pages/VerifyEmailPage.vue'
-import ResetPasswordPage from './pages/ResetPasswordPage.vue'
+import { RouterView, useRoute } from 'vue-router'
+import AppHeader from '@/components/AppHeader.vue'
 
-const page = computed(() => {
-  const path = window.location.pathname.replace(/^\/+|\/+$/g, '')
-  if (path === 'verify-email')   return 'verify-email'
-  if (path === 'reset-password') return 'reset-password'
-  return 'home'
-})
+const route = useRoute()
+
+// HomePage already has its own centered HeroSearch, so hide the header search bar there
+const isHome = computed(() => route.name === 'Home')
 </script>
