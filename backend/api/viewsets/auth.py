@@ -175,11 +175,20 @@ class AuthViewSet(viewsets.GenericViewSet):
         """
         Permanently delete the user account.
 
+        Requires password confirmation in the request body.
         Reviews are anonymized (user set to None, username shown as 'Deleted User')
         so ratings and review text are preserved for the community.
         Everything else (bookmarks, votes, tokens, profile) is cascade-deleted.
         """
         user = request.user
+
+        # Require password confirmation to prevent accidental/malicious deletion
+        password = request.data.get('password', '')
+        if not password or not user.check_password(password):
+            return Response(
+                {'detail': 'Password is required to confirm account deletion.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         # Anonymize reviews — keep the content, remove user association
         Review.objects.filter(user=user).update(user=None)
@@ -280,7 +289,6 @@ class AuthViewSet(viewsets.GenericViewSet):
 
         return Response({
             'detail': 'If an account with that email exists, a reset link has been sent.',
-            'email': email_result,
         })
 
     # ── Reset Password ─────────────────────────────────────────────────────

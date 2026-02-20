@@ -14,7 +14,7 @@ export default defineConfig({
     strictPort: true,
     proxy: {
       '/api': {
-        target: 'http://orbitcentral.ca',
+        target: 'http://localhost:8000',
         changeOrigin: true
       }
     }

@@ -378,11 +378,17 @@ class BusinessViewSet(viewsets.ModelViewSet):
         business = self.get_object()
         refs = business.photo_references or []
 
-        idx = int(request.query_params.get('idx', 0))
+        try:
+            idx = int(request.query_params.get('idx', 0))
+        except (ValueError, TypeError):
+            idx = 0
         if idx < 0 or idx >= len(refs):
             return Response({'detail': 'No photo at this index.'}, status=status.HTTP_404_NOT_FOUND)
 
-        max_height = int(request.query_params.get('maxHeight', 400))
+        try:
+            max_height = min(int(request.query_params.get('maxHeight', 400)), 2000)
+        except (ValueError, TypeError):
+            max_height = 400
         api_key = os.environ.get('GOOGLE_PLACES_API_KEY', '')
         if not api_key:
             return Response({'detail': 'Photo service unavailable.'}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
