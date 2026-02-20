@@ -390,18 +390,18 @@
 
     <div v-if="persResults.length" class="results-grid">
       <div v-for="b in persResults" :key="b.id" class="result-card">
-        <img v-if="b.photo_url" :src="b.photo_url.startsWith('http') ? b.photo_url : photoUrl(b.id)" class="result-img" />
+        <img v-if="b.image_url || b.photo_references?.length" :src="b.image_url || photoUrl(b.id)" class="result-img" alt="" @error="$event.target.style.display='none'" />
         <div class="result-body">
-          <strong>{{ b.name }}</strong>
-          <span class="meta">
-            {{ b.category_name }} · ★{{ b.avg_rating?.toFixed(1) || '—' }}
-            <template v-if="b.distance_km != null"> · {{ b.distance_km.toFixed(1) }}km</template>
-            <template v-if="b.score != null"> · score {{ b.score.toFixed(3) }}</template>
-          </span>
-          <span v-if="b.description" style="color:#94a3b8;font-size:12px">{{ b.description.slice(0, 120) }}{{ b.description.length > 120 ? '…' : '' }}</span>
+          <strong>#{{ b.id }} {{ b.name }}</strong>
+          <span class="meta">{{ b.category_detail?.name ?? 'Uncategorized' }} · {{ b.avg_rating }}★ · {{ b.price_level != null ? '$'.repeat(b.price_level) : '—' }}</span>
           <div v-if="b.tags?.length" class="result-tags">
-            <span v-for="t in b.tags" :key="t.id || t" class="pill small">{{ t.name || t }}</span>
+            <span v-for="t in b.tags" :key="t.id" class="pill small">{{ t.name }}</span>
           </div>
+          <span class="meta">
+            <template v-if="b.score != null">score: {{ b.score.toFixed(3) }} · </template>
+            <template v-if="b.similarity != null">sim: {{ (b.similarity*100).toFixed(1) }}% · </template>
+            <template v-if="b.distance_km != null">{{ b.distance_km.toFixed(2) }} km</template>
+          </span>
         </div>
       </div>
     </div>
