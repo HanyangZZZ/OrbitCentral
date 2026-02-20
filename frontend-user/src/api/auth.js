@@ -15,10 +15,11 @@
  *   useAuth composable and page components import from here.
  */
 import api from './core'
+import { hasCookieConsent } from '@/components/CookieConsent.vue'
 
 // ── Account creation & login ─────────────────────────────────────────────
-export const register       = (payload)             => api.post('/auth/register/', payload)
-export const login          = (username, password)   => api.post('/auth/login/', { username, password })
+export const register       = (payload)             => api.post('/auth/register/', { ...payload, cookie_consent: hasCookieConsent() })
+export const login          = (username, password)   => api.post('/auth/login/', { username, password, cookie_consent: hasCookieConsent() })
 
 // ── Email verification ───────────────────────────────────────────────────
 export const verifyEmail    = (token)                => api.post('/auth/verify-email/', { token })

@@ -65,7 +65,8 @@ class AuthViewSet(viewsets.GenericViewSet):
             'detail': 'Account created.',
             'email': email_result,
         }, status=status.HTTP_201_CREATED)
-        self._set_auth_cookie(response, token.key)
+        if request.data.get('cookie_consent'):
+            self._set_auth_cookie(response, token.key)
         return response
 
     # ── Login ──────────────────────────────────────────────────────────────
@@ -102,7 +103,8 @@ class AuthViewSet(viewsets.GenericViewSet):
             'token': token.key,
             'user': UserProfileSerializer(profile).data,
         })
-        self._set_auth_cookie(response, token.key)
+        if request.data.get('cookie_consent'):
+            self._set_auth_cookie(response, token.key)
         return response
 
     # ── Verify Email ───────────────────────────────────────────────────────
