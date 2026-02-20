@@ -1,5 +1,5 @@
 """
-BusinessViewSet — CRUD + weighted vector search + stats + photo proxy.
+BusinessViewSet — CRUD + weighted vector search + stats + photo proxy + AI personalization.
 """
 import logging
 import os
@@ -10,13 +10,15 @@ from django.contrib.gis.geos import Point
 from django.db.models import Avg, Count, F, FloatField, Value
 from django.http import HttpResponse, HttpResponseRedirect
 from pgvector.django import CosineDistance
-from rest_framework import status, viewsets
+from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAdminUser, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
 from ..models import Business, SearchedArea, Tag
+from ..permissions import IsEmailVerified
 from ..serializers import BusinessSearchSerializer, BusinessSerializer, TagSerializer
+from ..services.personalization import gather_user_profile, generate_search_query
 from ..tasks import ensure_area_covered_task
 
 logger = logging.getLogger('api')
@@ -46,9 +48,12 @@ class BusinessViewSet(viewsets.ModelViewSet):
         """
         Read-only endpoints (list, retrieve, search, stats) are public.
         Write endpoints (create, update, delete) require admin.
+        Personalized requires auth + verified email.
         """
         if self.action in ('create', 'update', 'partial_update', 'destroy'):
             return [IsAdminUser()]
+        if self.action == 'personalized':
+            return [permissions.IsAuthenticated(), IsEmailVerified()]
         return [IsAuthenticatedOrReadOnly()]
 
     # ── Weighted search: GET /api/businesses/search/ ──────────────────────
@@ -204,6 +209,108 @@ class BusinessViewSet(viewsets.ModelViewSet):
             results.append(biz)
 
         return results
+
+    # ── AI Personalized: GET /api/businesses/personalized/ ────────────────
+    @action(detail=False, methods=['get'], url_path='personalized')
+    def personalized(self, request):
+        """
+        AI-personalized business recommendations.
+
+        Analyzes the user's recent reviews and bookmarks with GPT-4.1,
+        generates a search query capturing their taste, then runs it
+        through the standard weighted-vibe search pipeline.
+
+        Query params
+        ────────────
+        lat, lng — user location (optional but recommended for proximity scoring)
+        limit    — max results, 1–20 (default 5)
+        """
+        try:
+            limit = min(int(request.query_params.get('limit', 5)), 20)
+        except (ValueError, TypeError):
+            limit = 5
+
+        # Parse user location
+        user_point = None
+        lat_str = request.query_params.get('lat')
+        lng_str = request.query_params.get('lng')
+        if lat_str and lng_str:
+            try:
+                user_point = Point(float(lng_str), float(lat_str), srid=4326)
+            except (ValueError, TypeError):
+                pass
+
+        # ── Step 1: gather user profile from reviews + bookmarks ─────────
+        profile_items = gather_user_profile(request.user)
+
+        if not profile_items:
+            return Response(
+                {'detail': 'Not enough activity yet. Review or bookmark a few businesses first.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # ── Step 2: ask GPT-4.1 to generate a search query ──────────────
+        try:
+            ai_query = generate_search_query(profile_items)
+        except Exception as exc:
+            logger.error('AI personalization query generation failed: %s', exc)
+            return Response(
+                {'detail': 'AI service temporarily unavailable.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        # ── Step 3: generate embedding from the AI query ─────────────────
+        try:
+            query_embedding = self._get_embedding(ai_query)
+        except Exception as exc:
+            logger.error('Embedding generation failed for personalized search: %s', exc)
+            return Response(
+                {'detail': 'Embedding service unavailable.'},
+                status=status.HTTP_503_SERVICE_UNAVAILABLE,
+            )
+
+        # ── Step 4: run the same weighted search pipeline ────────────────
+        # Auto-import if location provided
+        if user_point:
+            ensure_area_covered_task.delay(float(lat_str), float(lng_str))
+
+        qs = (
+            Business.objects
+            .select_related('category')
+            .prefetch_related('tags')
+            .filter(embedding__isnull=False)
+            .annotate(similarity=1 - CosineDistance(F('embedding'), query_embedding))
+        )
+
+        # Exclude businesses the user already reviewed or bookmarked
+        from ..models import Bookmark, Review
+        reviewed_ids = set(
+            Review.objects.filter(user=request.user).values_list('business_id', flat=True)
+        )
+        bookmarked_ids = set(
+            Bookmark.objects.filter(user=request.user).values_list('business_id', flat=True)
+        )
+        exclude_ids = reviewed_ids | bookmarked_ids
+        if exclude_ids:
+            qs = qs.exclude(id__in=exclude_ids)
+
+        if user_point:
+            qs = qs.annotate(distance_m=Distance('location', user_point))
+        else:
+            qs = qs.annotate(distance_m=Value(None, output_field=FloatField()))
+
+        # Weighted scoring (same as regular search)
+        qs = qs.order_by('-similarity')[:limit * 3]
+        results = self._annotate_results(qs, user_point, score_mode='weighted')
+        results.sort(key=lambda r: r.score or 0, reverse=True)
+        results = results[:limit]
+
+        serializer = BusinessSearchSerializer(results, many=True)
+        return Response({
+            'query': ai_query,
+            'profile_size': len(profile_items),
+            'results': serializer.data,
+        })
 
     # ── Stats: GET /api/businesses/stats/ ─────────────────────────────────
     @action(detail=False, methods=['get'], url_path='stats')

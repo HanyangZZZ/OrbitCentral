@@ -160,6 +160,16 @@ export const searchBusinesses = (params = {}) => {
   return api.get('/businesses/search/', { params: p, paramsSerializer: { indexes: null } })
 }
 
+// ── Personalized Recommendations ──────────────────────────────────────────────
+/**
+ * AI-personalized business recommendations based on user's reviews & bookmarks.
+ * @param {Object} [params]
+ * @param {number} [params.lat]   — user latitude (recommended)
+ * @param {number} [params.lng]   — user longitude (recommended)
+ * @param {number} [params.limit] — max results (default 5, max 20)
+ */
+export const getPersonalized = (params = {}) => api.get('/businesses/personalized/', { params })
+
 // ── Stats ─────────────────────────────────────────────────────────────────────
 export const getStats = () => api.get('/businesses/stats/')
 
