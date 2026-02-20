@@ -27,6 +27,14 @@ CORS_ALLOWED_ORIGINS = [
     if origin.strip()
 ]
 CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_CREDENTIALS = True
+
+# CSRF — trust our HTTPS origins so Django accepts cross-origin form posts/cookies
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',')
+    if origin.strip()
+]
 
 # ── Static files ───────────────────────────────────────────────────────────────
 STATIC_ROOT = BASE_DIR / 'staticfiles'
@@ -42,15 +50,20 @@ SECURE_SSL_REDIRECT = os.environ.get('SECURE_SSL_REDIRECT', 'false').lower() == 
 # Trust X-Forwarded-Proto from Nginx
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
-# HSTS (uncomment when you have HTTPS set up)
-# SECURE_HSTS_SECONDS = 31536000
-# SECURE_HSTS_INCLUDE_SUBDOMAINS = True
-# SECURE_HSTS_PRELOAD = True
+# HSTS — enforces HTTPS for all future visits
+SECURE_HSTS_SECONDS = 31536000      # 1 year
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
 
 # JSON only (no browsable API)
 REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [  # noqa: F405
     'rest_framework.renderers.JSONRenderer',
 ]
+
+# ── reCAPTCHA v3 ──────────────────────────────────────────────────────────────
+# Leave RECAPTCHA_SECRET_KEY empty to disable captcha verification (dev/staging).
+RECAPTCHA_SECRET_KEY = os.environ.get('RECAPTCHA_SECRET_KEY', '')
+RECAPTCHA_SCORE_THRESHOLD = float(os.environ.get('RECAPTCHA_SCORE_THRESHOLD', '0.5'))
 
 # Uncomment to require authentication on all endpoints by default:
 # REST_FRAMEWORK['DEFAULT_PERMISSION_CLASSES'] = [

@@ -117,6 +117,40 @@ deploy-frontend: ## Rebuild and deploy the frontend (nginx)
 		&& echo "\033[32m✓ Frontend deployed successfully.\033[0m" \
 		|| (echo "\033[31m✗ Build verification failed — JS bundle may be corrupt.\033[0m" && exit 1)
 
+# ── SSL / Certbot ────────────────────────────────────────────────────────────
+ssl-init: ## First-time SSL cert issuance (run once)
+	@echo "Step 1: Creating placeholder certs so nginx can start..."
+	docker compose run --rm --entrypoint "" certbot sh -c " \
+		mkdir -p /etc/letsencrypt/live/orbitcentral.ca && \
+		openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+			-keyout /etc/letsencrypt/live/orbitcentral.ca/privkey.pem \
+			-out /etc/letsencrypt/live/orbitcentral.ca/fullchain.pem \
+			-subj '/CN=orbitcentral.ca' 2>/dev/null && \
+		echo 'Placeholder certs created.'"
+	@echo "Step 2: Starting nginx (HTTP + placeholder HTTPS)..."
+	docker compose up -d nginx
+	@sleep 3
+	@echo "Step 3: Requesting real certificates from Let's Encrypt..."
+	docker compose run --rm certbot certonly --webroot \
+		-w /var/www/certbot \
+		-d orbitcentral.ca \
+		-d business.orbitcentral.ca \
+		-d admin.orbitcentral.ca \
+		-d flower.orbitcentral.ca \
+		--email $${CERTBOT_EMAIL:?Set CERTBOT_EMAIL in .env} \
+		--agree-tos --no-eff-email --force-renewal
+	@echo "Step 4: Reloading nginx with real certs..."
+	docker compose exec nginx nginx -s reload
+	@echo "\033[32m✓ SSL certificates installed successfully.\033[0m"
+
+ssl-renew: ## Renew SSL certificates
+	docker compose run --rm certbot renew
+	docker compose exec nginx nginx -s reload
+	@echo "\033[32m✓ SSL certificates renewed.\033[0m"
+
+ssl-status: ## Show SSL certificate status
+	docker compose run --rm certbot certificates
+
 # ── Cleanup ──────────────────────────────────────────────────────────────────
 clean: ## Remove containers, volumes, and images
 	docker compose down -v --rmi local

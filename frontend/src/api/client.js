@@ -1,7 +1,8 @@
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api'
+  baseURL: import.meta.env.VITE_API_BASE_URL ?? '/api',
+  withCredentials: true,   // send/receive HttpOnly auth cookies
 })
 
 // ── Auth helpers ──────────────────────────────────────────────────────────────
@@ -70,10 +71,35 @@ export const updateMe = (payload) => api.patch('/auth/me/', payload)
 export const resendVerify = () => api.post('/auth/resend-verify/')
 
 /**
- * Logout — delete the server-side auth token.
+ * Logout — delete the server-side auth token and clear cookie.
  * POST /api/auth/logout/  (auth required)
+ * Also clears the local token.
  */
-export const logout = () => api.post('/auth/logout/')
+export const logout = () => {
+  localStorage.removeItem(TOKEN_KEY)
+  delete api.defaults.headers.common['Authorization']
+  return api.post('/auth/logout/')
+}
+
+/**
+ * Auto-login: try to restore session from cookie or localStorage.
+ * Call on app startup. Returns the user profile if authenticated, null otherwise.
+ *
+ * Priority:
+ *   1. localStorage token → sets header, calls /auth/me/
+ *   2. HttpOnly cookie (browser sends it automatically) → calls /auth/me/
+ */
+export const autoLogin = async () => {
+  try {
+    const { data } = await getMe()
+    return data
+  } catch {
+    // Cookie or token expired / invalid — clear any stale localStorage
+    localStorage.removeItem(TOKEN_KEY)
+    delete api.defaults.headers.common['Authorization']
+    return null
+  }
+}
 
 /**
  * Delete the current user's account.
