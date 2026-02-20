@@ -18,6 +18,7 @@ from rest_framework.response import Response
 from ..models import Business, SearchedArea, Tag
 from ..permissions import IsEmailVerified
 from ..serializers import BusinessSearchSerializer, BusinessSerializer, TagSerializer
+from ..services.geocoding import reverse_geocode
 from ..services.personalization import gather_user_profile, generate_search_query
 from ..tasks import ensure_area_covered_task
 
@@ -338,6 +339,31 @@ class BusinessViewSet(viewsets.ModelViewSet):
             'avg_rating': round(float(avg_rating or 0), 2),
             'top_tags': top_tags,
         })
+
+    # ── Geocode: GET /api/businesses/geocode/ ────────────────────────────
+    @action(detail=False, methods=['get'], url_path='geocode')
+    def geocode(self, request):
+        """
+        Reverse-geocode coordinates to city + province.
+        Query params: ?lat=43.651&lng=-79.347
+        """
+        try:
+            lat = float(request.query_params['lat'])
+            lng = float(request.query_params['lng'])
+        except (KeyError, ValueError, TypeError):
+            return Response(
+                {'detail': 'lat and lng query parameters are required (floats).'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            result = reverse_geocode(lat, lng)
+            return Response(result)
+        except ValueError as exc:
+            return Response({'detail': str(exc)}, status=status.HTTP_404_NOT_FOUND)
+        except RuntimeError as exc:
+            logger.error('Geocode error: %s', exc)
+            return Response({'detail': str(exc)}, status=status.HTTP_502_BAD_GATEWAY)
 
     # ── Photo proxy: GET /api/businesses/<id>/photo/ ─────────────────────
     @action(detail=True, methods=['get'], url_path='photo')
