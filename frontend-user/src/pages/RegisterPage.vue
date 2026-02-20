@@ -88,6 +88,9 @@
           <li v-for="(err, i) in errors" :key="i" class="error-msg">{{ err }}</li>
         </ul>
 
+        <!-- Invisible reCAPTCHA widget anchor -->
+        <div :id="captchaId"></div>
+
         <button type="submit" class="btn btn-primary btn-full" :disabled="submitting">
           {{ submitting ? 'Creating account…' : 'Create Account' }}
         </button>
@@ -110,9 +113,11 @@ import { ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { register } from '@/api/client'
 import { useAuth } from '@/composables/useAuth'
+import useCaptcha from '@/composables/useCaptcha'
 
 const router = useRouter()
 const { setUser } = useAuth()
+const { containerId: captchaId, execute: executeCaptcha } = useCaptcha('recaptcha-register')
 
 const email = ref('')
 const username = ref('')
@@ -140,6 +145,7 @@ async function handleRegister() {
   submitting.value = true
 
   try {
+    const captchaToken = await executeCaptcha()
     const payload = {
       email: email.value.trim(),
       username: username.value.trim(),
@@ -149,7 +155,7 @@ async function handleRegister() {
       payload.display_name = displayName.value.trim()
     }
 
-    const { data } = await register(payload)
+    const { data } = await register(payload, captchaToken)
     setUser(data.user, data.token)
     success.value = true
 

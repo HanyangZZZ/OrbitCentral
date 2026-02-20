@@ -51,6 +51,9 @@
 
         <p v-if="error" class="error-msg">{{ error }}</p>
 
+        <!-- Invisible reCAPTCHA widget anchor -->
+        <div :id="captchaId"></div>
+
         <button type="submit" class="btn btn-primary btn-full" :disabled="submitting">
           {{ submitting ? 'Logging in…' : 'Log In' }}
         </button>
@@ -68,10 +71,12 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { login } from '@/api/client'
 import { useAuth } from '@/composables/useAuth'
+import useCaptcha from '@/composables/useCaptcha'
 
 const router = useRouter()
 const route  = useRoute()
 const { setUser } = useAuth()
+const { containerId: captchaId, execute: executeCaptcha } = useCaptcha('recaptcha-login')
 
 const username   = ref('')
 const password   = ref('')
@@ -83,7 +88,8 @@ async function handleLogin() {
   error.value = ''
 
   try {
-    const { data } = await login(username.value.trim(), password.value)
+    const captchaToken = await executeCaptcha()
+    const { data } = await login(username.value.trim(), password.value, captchaToken)
     setUser(data.user, data.token)
     // Redirect to the page the user was trying to reach, or Home
     router.push(route.query.redirect || { name: 'Home' })

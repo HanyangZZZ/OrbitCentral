@@ -60,8 +60,9 @@ REST_FRAMEWORK['DEFAULT_RENDERER_CLASSES'] = [  # noqa: F405
     'rest_framework.renderers.JSONRenderer',
 ]
 
-# ── reCAPTCHA v3 ──────────────────────────────────────────────────────────────
+# ── reCAPTCHA (v2 invisible + v3 score-based) ─────────────────────────────────
 # Leave RECAPTCHA_SECRET_KEY empty to disable captcha verification (dev/staging).
+# The service auto-detects v2 vs v3 from Google's response.
 RECAPTCHA_SECRET_KEY = os.environ.get('RECAPTCHA_SECRET_KEY', '')
 RECAPTCHA_SCORE_THRESHOLD = float(os.environ.get('RECAPTCHA_SCORE_THRESHOLD', '0.5'))
 
