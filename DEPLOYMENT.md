@@ -7,6 +7,8 @@ How to deploy FBLC to a cloud server. This guide uses Google Compute Engine (GCE
 | Detail | Value |
 |--------|-------|
 | Instance name | `fblc` |
+| Cloud provider | Google Compute Engine (GCE) |
+| Project ID | `consummate-sled-487120-u3` |
 | OS | Debian 12 |
 | Specs | 2 vCPU, 3.8 GB RAM |
 | Region | `northamerica-northeast2-b` |
@@ -18,6 +20,20 @@ How to deploy FBLC to a cloud server. This guide uses Google Compute Engine (GCE
 | Admin panel | `https://business.orbitcentral.ca/admin/` |
 | DB portal (Adminer) | `https://admin.orbitcentral.ca` |
 | Task monitor (Flower) | `https://flower.orbitcentral.ca` |
+| SSL cert expiry | Check with `make ssl-status` |
+
+### SSH Access
+
+```bash
+# Connect to the server
+gcloud compute ssh fblc --zone northamerica-northeast2-b
+
+# Or with the full SSH host alias (from ~/.ssh/config after first gcloud ssh)
+ssh fblc.northamerica-northeast2-b.consummate-sled-487120-u3
+
+# Project files live at
+cd ~/FBLC
+```
 
 ### DNS Records
 
@@ -79,7 +95,7 @@ sudo usermod -aG docker $USER
 ```bash
 # From your local machine
 gcloud compute scp --recurse \
-  backend/ frontend-demo/ frontend-user/ postgres/ nginx/ docker-compose.yml .env.production.example Makefile \
+  backend/ frontend-demo/ frontend-user/ postgres/ nginx/ docker-compose.yml .env.example Makefile \
   fblc:~/FBLC/
 ```
 
@@ -95,7 +111,7 @@ cd FBLC
 
 ```bash
 cd ~/FBLC
-cp .env.production.example .env
+cp .env.example .env
 nano .env
 ```
 
