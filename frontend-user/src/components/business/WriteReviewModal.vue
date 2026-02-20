@@ -116,6 +116,44 @@
               <div v-if="tagsToAdd.length" class="vibe-tags">
                 <span v-for="tag in tagsToAdd" :key="tag" class="vibe-tag">{{ tag }}</span>
               </div>
+
+              <!-- Photo upload inside card -->
+              <div class="photo-upload-section">
+                <div v-if="!photoPreview"
+                  class="photo-drop-zone"
+                  :class="{ 'drag-over': isDragging }"
+                  @click="triggerPhotoInput"
+                  @dragover.prevent="isDragging = true"
+                  @dragleave.prevent="isDragging = false"
+                  @drop.prevent="handlePhotoDrop"
+                >
+                  <input
+                    ref="photoInput"
+                    type="file"
+                    accept="image/jpeg,image/png,image/webp"
+                    class="photo-file-input"
+                    @change="handlePhotoSelect"
+                  />
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+                    <circle cx="8.5" cy="8.5" r="1.5"/>
+                    <polyline points="21 15 16 10 5 21"/>
+                  </svg>
+                  <span class="photo-drop-text">Add a photo <em>(optional)</em></span>
+                  <span class="photo-drop-hint">JPG, PNG, or WebP · Max 5 MB</span>
+                </div>
+
+                <div v-else class="photo-preview-wrap">
+                  <img :src="photoPreview" alt="Photo preview" class="photo-preview-img" />
+                  <button class="photo-remove-btn" @click="removePhoto" title="Remove photo">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                    </svg>
+                  </button>
+                </div>
+
+                <p v-if="photoError" class="photo-error">{{ photoError }}</p>
+              </div>
             </div>
           </div>
 
@@ -278,9 +316,16 @@ const chatError = ref('')
 const tagsToAdd = ref([])
 const generatedDescription = ref('')
 
+// Photo upload
+const photoBase64 = ref('')
+const photoPreview = ref('')
+const photoError = ref('')
+const isDragging = ref(false)
+
 // DOM refs
 const chatContainer = ref(null)
 const inputRef = ref(null)
+const photoInput = ref(null)
 
 // ── Computed ───────────────────────────────────────────────────────────
 const ratingLabels = ['', 'Terrible', 'Poor', 'Okay', 'Great', 'Amazing!']
@@ -312,6 +357,10 @@ watch(() => props.modelValue, (open) => {
     chatError.value = ''
     tagsToAdd.value = []
     generatedDescription.value = ''
+    photoBase64.value = ''
+    photoPreview.value = ''
+    photoError.value = ''
+    isDragging.value = false
   }
 })
 
@@ -328,6 +377,57 @@ function autoGrow(e) {
   const el = e.target
   el.style.height = 'auto'
   el.style.height = Math.min(el.scrollHeight, 120) + 'px'
+}
+
+// ── Photo upload helpers ───────────────────────────────────────────────
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024 // 5 MB
+
+function triggerPhotoInput() {
+  photoInput.value?.click()
+}
+
+function handlePhotoSelect(event) {
+  const file = event.target.files?.[0]
+  if (file) processPhotoFile(file)
+  // reset so same file can be re-selected
+  if (photoInput.value) photoInput.value.value = ''
+}
+
+function handlePhotoDrop(event) {
+  isDragging.value = false
+  const file = event.dataTransfer?.files?.[0]
+  if (file) processPhotoFile(file)
+}
+
+function processPhotoFile(file) {
+  photoError.value = ''
+
+  const allowed = ['image/jpeg', 'image/png', 'image/webp']
+  if (!allowed.includes(file.type)) {
+    photoError.value = 'Only JPG, PNG, or WebP images are allowed.'
+    return
+  }
+  if (file.size > MAX_PHOTO_SIZE) {
+    photoError.value = 'Image must be under 5 MB.'
+    return
+  }
+
+  const reader = new FileReader()
+  reader.onload = () => {
+    photoPreview.value = reader.result           // data:image/...;base64,...
+    // Strip the data-URI prefix → send raw base64 to API
+    photoBase64.value = reader.result.split(',')[1] || reader.result
+  }
+  reader.onerror = () => {
+    photoError.value = 'Failed to read image. Please try again.'
+  }
+  reader.readAsDataURL(file)
+}
+
+function removePhoto() {
+  photoBase64.value = ''
+  photoPreview.value = ''
+  photoError.value = ''
 }
 
 // ── Select rating → start session ──────────────────────────────────────
@@ -432,9 +532,11 @@ async function confirmReview() {
   submitting.value = true
 
   try {
-    await confirmAIReview(sessionId.value, {
-      description: generatedDescription.value,
-    })
+    const payload = { description: generatedDescription.value }
+    if (photoBase64.value) {
+      payload.photo = photoBase64.value
+    }
+    await confirmAIReview(sessionId.value, payload)
     published.value = true
     emit('review-published')
     scrollChat()
@@ -769,6 +871,88 @@ function handleClose() {
   font-weight: 500;
   color: #4A70A9;
   border: 1px solid rgba(74, 112, 169, 0.12);
+}
+
+/* ─── Photo upload ─── */
+.photo-upload-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+.photo-drop-zone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.75rem;
+  border: 1.5px dashed #d0cdc4;
+  border-radius: 0.625rem;
+  background: #fff;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.photo-drop-zone:hover {
+  border-color: #4A70A9;
+  background: #f8f9fc;
+}
+.photo-drop-zone.drag-over {
+  border-color: #4A70A9;
+  background: #eef2f8;
+}
+.photo-file-input {
+  display: none;
+}
+.photo-drop-text {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #555;
+}
+.photo-drop-text em {
+  font-style: italic;
+  font-weight: 400;
+  color: #999;
+}
+.photo-drop-hint {
+  font-size: 0.6875rem;
+  color: #aaa;
+}
+.photo-preview-wrap {
+  position: relative;
+  display: inline-block;
+  align-self: flex-start;
+}
+.photo-preview-img {
+  max-height: 140px;
+  max-width: 100%;
+  border-radius: 0.5rem;
+  border: 1px solid #e0ddd4;
+  object-fit: cover;
+}
+.photo-remove-btn {
+  position: absolute;
+  top: -0.375rem;
+  right: -0.375rem;
+  width: 1.375rem;
+  height: 1.375rem;
+  border-radius: 50%;
+  background: #ef4444;
+  color: #fff;
+  border: 2px solid #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.15s;
+  padding: 0;
+}
+.photo-remove-btn:hover {
+  background: #dc2626;
+  transform: scale(1.1);
+}
+.photo-error {
+  font-size: 0.75rem;
+  color: #ef4444;
+  margin: 0;
 }
 
 /* ─── Vibe tags bar (above input) ─── */
