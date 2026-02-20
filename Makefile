@@ -103,19 +103,26 @@ flower: ## Open Flower dashboard (starts if not running)
 	@docker compose up -d flower
 
 # ── Frontend / Nginx deploy ──────────────────────────────────────────────────
-deploy-frontend: ## Rebuild and deploy the frontend (nginx)
-	@echo "Validating frontend source..."
+deploy-frontend: ## Rebuild and deploy both frontends (user + demo) via nginx
+	@echo "Validating frontend sources..."
+	@grep -q 'src="/src/main.js"' frontend-user/index.html \
+		|| (echo "\033[31mERROR: frontend-user/index.html is corrupted — missing /src/main.js entry point.\033[0m" && exit 1)
 	@grep -q 'src="/src/main.js"' frontend/index.html \
 		|| (echo "\033[31mERROR: frontend/index.html is corrupted — missing /src/main.js entry point.\033[0m" && exit 1)
 	@echo "Building nginx (--no-cache)..."
 	docker compose build --no-cache nginx
 	@echo "Restarting nginx..."
 	docker compose up -d nginx
-	@echo "Verifying build output..."
+	@echo "Verifying user frontend (orbitcentral.ca)..."
 	@JS_FILE=$$(docker compose exec nginx ls /app/frontend/assets/ | grep '\.js$$' | head -1) \
 		&& docker compose exec nginx grep -q 'createApp' /app/frontend/assets/$$JS_FILE \
-		&& echo "\033[32m✓ Frontend deployed successfully.\033[0m" \
-		|| (echo "\033[31m✗ Build verification failed — JS bundle may be corrupt.\033[0m" && exit 1)
+		&& echo "\033[32m✓ User frontend deployed.\033[0m" \
+		|| (echo "\033[31m✗ User frontend build verification failed.\033[0m" && exit 1)
+	@echo "Verifying demo frontend (test.orbitcentral.ca)..."
+	@JS_FILE=$$(docker compose exec nginx ls /app/frontend-demo/assets/ | grep '\.js$$' | head -1) \
+		&& docker compose exec nginx grep -q 'createApp' /app/frontend-demo/assets/$$JS_FILE \
+		&& echo "\033[32m✓ Demo frontend deployed.\033[0m" \
+		|| (echo "\033[31m✗ Demo frontend build verification failed.\033[0m" && exit 1)
 
 # ── SSL / Certbot ────────────────────────────────────────────────────────────
 ssl-init: ## First-time SSL cert issuance (run once)
@@ -136,6 +143,7 @@ ssl-init: ## First-time SSL cert issuance (run once)
 		-d orbitcentral.ca \
 		-d business.orbitcentral.ca \
 		-d admin.orbitcentral.ca \
+		-d test.orbitcentral.ca \
 		-d flower.orbitcentral.ca \
 		--email $${CERTBOT_EMAIL:?Set CERTBOT_EMAIL in .env} \
 		--agree-tos --no-eff-email --force-renewal
