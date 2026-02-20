@@ -1,0 +1,184 @@
+/*
+ * global.css — Orbit Design System Foundation
+ * ─────────────────────────────────────────────────────────────────────────────
+ * Single stylesheet imported in main.js that every component inherits from.
+ *
+ * SECTIONS
+ * 1. DESIGN TOKENS    — CSS custom properties (colours, fonts, shadows, radii)
+ * 2. TYPOGRAPHY        — Barlow for headings, SF Pro for body text
+ * 3. RESET             — Box-sizing, margin/padding zero, smoothing
+ * 4. SHARED FORM ELS   — .field-group, .field-input (used by Login, Register, Profile)
+ * 5. SHARED BUTTONS    — .btn, .btn-primary, .btn-outline, .btn-danger, .btn-sm, .btn-full
+ * 6. STATE INDICATORS  — .spinner (orbital animation), .state-msg, .error-msg
+ * 7. ACCESSIBILITY     — .sr-only (screen-reader-only utility)
+ *
+ * WHY ONE FILE?
+ * Keeping all tokens and shared classes here means any component can reference
+ * `var(--color-primary)` or class `btn-primary` without importing anything.
+ * Component-specific styles live in each component's <style scoped> block.
+ * ─────────────────────────────────────────────────────────────────────────────
+ */
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 1. DESIGN TOKENS — every colour, shadow, and font used across the app     */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  /* Brand palette */
+  --color-primary: #4a70a9;
+  --color-primary-hover: #1e3a8a;
+  --color-primary-dark: #1e3a8a;
+  --color-accent: #4338ca;
+
+  /* Backgrounds */
+  --color-bg: #f8fafc;
+  --color-surface: #ffffff;
+  --color-bg-warm: #efece3;
+
+  /* Text */
+  --color-text: #0f172a;
+  --color-text-light: #475569;
+  --color-text-muted: #64748b;
+
+  /* Borders */
+  --color-border: #e2e8f0;
+  --color-border-light: #c7d2fe;
+
+  /* Status */
+  --color-success: #22c55e;
+  --color-danger: #ef4444;
+  --color-danger-hover: #dc2626;
+  --color-warning: #f59e0b;
+  --color-accent-gold: #f59e0b;
+
+  /* Misc */
+  --radius: 8px;
+  --shadow-sm: 0 1px 3px rgba(15,23,42,0.06);
+  --shadow-md: 0 4px 12px rgba(15,23,42,0.08);
+  --shadow-lg: 0 8px 28px rgba(15,23,42,0.12);
+
+  /* Search bar */
+  --search-bg: #f8f8f8;
+  --search-bg-ai: #efece3;
+  --search-icon-color: #0f172a;
+  --search-text-color: #0f172a;
+  --search-placeholder-color: rgba(15, 23, 42, 0.5);
+
+  /* Typography */
+  --font-brand: 'Barlow', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-ui: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, sans-serif;
+  font-family: var(--font-ui);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 2. TYPOGRAPHY — Barlow for headings, SF Pro for everything else            */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-brand);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 3. RESET — normalise all elements so every browser looks the same          */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--color-bg);
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+a { color: var(--color-primary); text-decoration: none; }
+a:hover { text-decoration: underline; }
+img { max-width: 100%; display: block; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 4. SHARED FORM ELEMENTS — reusable across Login, Register, Profile pages   */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+.field-group { display: flex; flex-direction: column; gap: 6px; }
+.field-label { font-size: 13px; font-weight: 500; color: var(--color-text-muted); }
+.field-input {
+  background: #fafaf8;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 11px 14px;
+  color: var(--color-text);
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+.field-input:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(74,112,169,0.12);
+}
+.field-input::placeholder { color: #94a3b8; }
+.field-textarea { resize: vertical; font-family: inherit; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 5. SHARED BUTTONS — .btn variants used across almost every page            */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 8px 18px; border-radius: var(--radius);
+  font-size: 14px; font-weight: 500;
+  cursor: pointer; border: none;
+  transition: background 0.2s, opacity 0.2s, box-shadow 0.2s;
+  text-decoration: none;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-primary { background: var(--color-primary); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--color-primary-hover); }
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text-muted);
+}
+.btn-outline:hover:not(:disabled) { border-color: var(--color-primary); color: var(--color-primary); }
+.btn-danger { background: var(--color-danger); color: #fff; }
+.btn-danger:hover:not(:disabled) { background: var(--color-danger-hover); }
+.btn-sm { padding: 4px 12px; font-size: 12px; }
+.btn-full { width: 100%; font-size: 15px; font-weight: 600; padding: 11px 18px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 6. STATE INDICATORS — orbital spinner, loading/error/success messages      */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+.spinner {
+  width: 28px; height: 28px;
+  position: relative;
+  animation: orbit-spin 1.4s linear infinite;
+}
+.spinner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(74,112,169,0.15);
+  border-radius: 50%;
+}
+.spinner::after {
+  content: '';
+  position: absolute;
+  width: 6px; height: 6px;
+  background: var(--color-primary);
+  border-radius: 50%;
+  top: -3px; left: 50%;
+  margin-left: -3px;
+  box-shadow: 0 0 8px rgba(74,112,169,0.5);
+}
+@keyframes orbit-spin { to { transform: rotate(360deg); } }
+
+.state-msg {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 80px 20px;
+  color: var(--color-text-muted); font-size: 15px; text-align: center;
+}
+.state-msg.error { color: var(--color-danger); }
+
+.success-msg { font-size: 13px; color: var(--color-success); }
+.error-msg   { font-size: 13px; color: var(--color-danger); }
+
+/* ═══════════════════════════════════════════════════════════════════════════ */
+/* 7. ACCESSIBILITY — screen-reader-only helper class                         */
+/* ═══════════════════════════════════════════════════════════════════════════ */
+.sr-only {
+  position: absolute; width: 1px; height: 1px;
+  padding: 0; margin: -1px; overflow: hidden;
+  clip: rect(0,0,0,0); white-space: nowrap; border: 0;
+}

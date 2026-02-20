@@ -1,0 +1,893 @@
+<template>
+  <div class="detail-page">
+    <!-- ══════════════════════════════════════════════════════════════════
+         LOADING / ERROR
+         ══════════════════════════════════════════════════════════════════ -->
+    <div v-if="loading" class="state-msg"><div class="spinner" /><span>Loading...</span></div>
+    <div v-else-if="error" class="state-msg error">
+      <p>⚠️ {{ error }}</p>
+      <router-link to="/search" class="back-link">← Back to search</router-link>
+    </div>
+
+    <template v-else-if="business">
+      <!-- ════════════════════════════════════════════════════════════════
+           HERO BANNER — full-width photo, overlaid business name + rating
+           Data: image_url / photo_references, name, avg_rating
+           ════════════════════════════════════════════════════════════════ -->
+      <section class="hero" :style="bannerUrl ? { backgroundImage: `url(${bannerUrl})` } : {}">
+        <div class="hero-overlay" />
+        <div class="hero-content">
+          <div class="hero-logo">
+            <img
+              v-if="bannerUrl" :src="bannerUrl" :alt="business.name"
+              class="logo-img" @error="$event.target.style.display='none'"
+            />
+            <div v-else class="logo-placeholder">{{ business.name.charAt(0) }}</div>
+          </div>
+          <div class="hero-text">
+            <h1 class="business-name">{{ business.name }}</h1>
+            <div class="hero-rating">
+              <span class="stars">{{ starsDisplay }}</span>
+              <span class="rating-num">{{ Number(business.avg_rating || 0).toFixed(1) }}</span>
+              <span class="rating-count">({{ business.user_rating_count || 0 }} reviews)</span>
+            </div>
+            <div v-if="business.tags?.length" class="hero-tags">
+              <span v-for="tag in business.tags.slice(0, 5)" :key="tag.id" class="hero-tag">{{ tag.name }}</span>
+            </div>
+          </div>
+          <button class="bookmark-btn" :class="{ active: bookmarked }" @click="onToggleBookmark">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24"
+              :fill="bookmarked ? 'currentColor' : 'none'" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
+            </svg>
+          </button>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════════════════════
+           CONTACT BAR — location, email, phone + action buttons
+           Data: address, contact_email, phone
+           ════════════════════════════════════════════════════════════════ -->
+      <section class="contact-bar">
+        <div class="contact-items">
+          <a v-if="business.address" :href="business.google_maps_uri || '#'" target="_blank" class="contact-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            <span>{{ business.address }}</span>
+          </a>
+          <a v-if="business.contact_email" :href="`mailto:${business.contact_email}`" class="contact-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+            <span>{{ business.contact_email }}</span>
+          </a>
+          <a v-if="business.phone" :href="`tel:${business.phone}`" class="contact-item">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+            <span>{{ business.phone }}</span>
+          </a>
+          <a v-if="business.website_url" :href="business.website_url" target="_blank" class="contact-item website-link">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+            <span>{{ business.website_url.replace(/^https?:\/\//, '').replace(/\/$/, '') }}</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
+        <div class="action-buttons">
+          <button class="action-btn primary" @click="showReviewForm = true">
+            ✍️ Write a Review
+          </button>
+          <button class="action-btn accent-secondary" @click="showActivitiesPopup = true">
+            🗳️ Vote for Activities
+          </button>
+          <button class="action-btn accent-secondary" @click="showCouponsPopup = true">
+            🎟️ View Coupons
+          </button>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════════════════════
+           DESCRIPTION
+           Data: description (may be null)
+           ════════════════════════════════════════════════════════════════ -->
+      <section v-if="business.description" class="section description-section">
+        <p class="description-text">{{ business.description }}</p>
+      </section>
+
+      <!-- ════════════════════════════════════════════════════════════════
+           HOURS
+           Data: opening_hours.weekdayDescriptions
+           ════════════════════════════════════════════════════════════════ -->
+      <section v-if="weekdayHours.length" class="section hours-section">
+        <h2 class="section-title">Hours</h2>
+        <div class="hours-grid">
+          <div v-for="(line, i) in weekdayHours" :key="i" class="hour-row" :class="{ today: i === todayIndex }">
+            {{ line }}
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════════════════════
+           HIGHLIGHTS — feature cards from boolean API fields
+           Data: dine_in, takeout, delivery, outdoor_seating, etc.
+           ════════════════════════════════════════════════════════════════ -->
+      <section v-if="highlights.length" class="section">
+        <h2 class="section-title">Highlights</h2>
+        <div class="highlights-grid">
+          <div v-for="(h, i) in highlights" :key="i" class="highlight-card">
+            <span class="highlight-icon">{{ h.icon }}</span>
+            <div>
+              <strong class="highlight-title">{{ h.title }}</strong>
+              <p class="highlight-desc">{{ h.desc }}</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════════════════════
+           REVIEWS
+           Data: reviews_data (Google), /api/reviews/ (user)
+           ════════════════════════════════════════════════════════════════ -->
+      <section class="section reviews-section">
+        <div class="reviews-header">
+          <div class="reviews-summary">
+            <span class="big-rating">{{ Number(business.avg_rating || 0).toFixed(1) }}</span>
+            <div class="summary-right">
+              <span class="stars">{{ starsDisplay }}</span>
+              <span class="review-total">{{ totalReviewCount }} Reviews</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Customers Say (AI-synthesized from Google reviews) -->
+        <div v-if="customersSay" class="customers-say">
+          <div class="cs-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2a4 4 0 0 0-4 4c0 2 2 3 2 6H8a2 2 0 1 0 0 4h8a2 2 0 0 0 0-4h-2c0-3 2-4 2-6a4 4 0 0 0-4-4Z"/><line x1="12" y1="18" x2="12" y2="22"/></svg>
+          </div>
+          <div>
+            <strong class="cs-label">Customers Say</strong>
+            <p class="cs-text">{{ customersSay }}</p>
+          </div>
+        </div>
+
+        <!-- Sort control -->
+        <div class="review-sort">
+          <span class="sort-label">Sort by:</span>
+          <button
+            class="sort-btn"
+            :class="{ active: reviewSort === '-created_at' }"
+            @click="changeReviewSort('-created_at')"
+          >Newest</button>
+          <button
+            class="sort-btn"
+            :class="{ active: reviewSort === 'created_at' }"
+            @click="changeReviewSort('created_at')"
+          >Oldest</button>
+          <button
+            class="sort-btn"
+            :class="{ active: reviewSort === '-rating' }"
+            @click="changeReviewSort('-rating')"
+          >Highest Rated</button>
+          <button
+            class="sort-btn"
+            :class="{ active: reviewSort === 'rating' }"
+            @click="changeReviewSort('rating')"
+          >Lowest Rated</button>
+        </div>
+
+        <!-- Reviews loading indicator -->
+        <div v-if="reviewsLoading" class="reviews-loading">
+          <div class="spinner-small" />
+          <span>Loading reviews...</span>
+        </div>
+
+        <!-- Review list -->
+        <div v-if="!reviewsLoading" class="review-list">
+          <div v-for="r in allReviews" :key="r.id" class="review-card">
+            <div class="review-card-header">
+              <div class="reviewer-avatar" :class="r.source">
+                {{ r.author.charAt(0).toUpperCase() }}
+              </div>
+              <div class="reviewer-info">
+                <div class="reviewer-stars">{{ '★'.repeat(r.rating) }}{{ '☆'.repeat(5 - r.rating) }}</div>
+                <span class="reviewer-name">{{ r.author }}</span>
+                <span v-if="r.date" class="review-date">{{ formatDate(r.date) }}</span>
+                <span v-if="r.source === 'google'" class="source-badge">Google</span>
+              </div>
+            </div>
+            <p v-if="r.text" class="review-body">{{ r.text }}</p>
+            <img v-if="r.imageUrl" :src="r.imageUrl" alt="Review photo" class="review-photo" />
+            <!-- Vote buttons (user reviews only) -->
+            <div v-if="r.voteCounts" class="vote-bar">
+              <button
+                v-for="vt in ['useful', 'funny', 'cool']" :key="vt"
+                class="vote-btn" :class="{ voted: r.userVotes.includes(vt) }"
+                @click="onVoteReview(r.id, vt)"
+              >
+                {{ voteEmoji[vt] }} {{ vt }} {{ r.voteCounts[vt] || '' }}
+              </button>
+            </div>
+          </div>
+
+          <!-- Empty state -->
+          <div v-if="allReviews.length === 0" class="no-reviews">
+            <p>No reviews yet. Be the first to share your experience!</p>
+          </div>
+        </div>
+
+        <!-- Load more -->
+        <div v-if="reviewsNext && !reviewsLoading" class="load-more-section">
+          <button class="load-more-btn" :disabled="loadingMoreReviews" @click="handleLoadMore">
+            <span v-if="loadingMoreReviews">Loading...</span>
+            <span v-else>Load More Reviews</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ════════════════════════════════════════════════════════════════
+           WRITE REVIEW MODAL
+           API: POST /api/reviews/
+           ════════════════════════════════════════════════════════════════ -->
+      <div v-if="showReviewForm" class="modal-overlay" @click.self="showReviewForm = false">
+        <div class="modal">
+          <h2 class="modal-title">Write a Review</h2>
+          <div class="star-picker">
+            <button
+              v-for="n in 5" :key="n"
+              class="star-pick" :class="{ filled: n <= newRating }"
+              @click="newRating = n"
+            >★</button>
+          </div>
+          <textarea
+            v-model="newReviewText" class="review-input"
+            placeholder="Share your experience..." rows="4"
+          />
+          <div class="modal-actions">
+            <button class="action-btn secondary" @click="showReviewForm = false">Cancel</button>
+            <button
+              class="action-btn primary" :disabled="!newRating || submittingReview"
+              @click="handleSubmitReview"
+            >
+              {{ submittingReview ? 'Submitting...' : 'Submit Review' }}
+            </button>
+          </div>
+          <p v-if="reviewError" class="review-error">{{ reviewError }}</p>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════════════════════════
+           VOTE FOR ACTIVITIES POPUP — template only
+           ════════════════════════════════════════════════════════════════ -->
+      <div v-if="showActivitiesPopup" class="modal-overlay" @click.self="showActivitiesPopup = false">
+        <div class="modal modal-wide">
+          <div class="modal-header-row">
+            <h2 class="modal-title">🗳️ Vote for Activities</h2>
+            <button class="modal-close" @click="showActivitiesPopup = false">✕</button>
+          </div>
+          <p class="modal-subtitle">
+            Which activities would you love <strong>{{ business.name }}</strong> to host? Vote for your favourites!
+          </p>
+
+          <div class="activities-list">
+            <div
+              v-for="(act, i) in templateActivities" :key="i"
+              class="activity-card"
+              :class="{ voted: activityVotes.includes(i) }"
+              @click="toggleActivityVote(i)"
+            >
+              <span class="activity-emoji">{{ act.emoji }}</span>
+              <div class="activity-info">
+                <strong>{{ act.title }}</strong>
+                <span class="activity-desc">{{ act.desc }}</span>
+              </div>
+              <span class="activity-vote-icon">
+                {{ activityVotes.includes(i) ? '✅' : '☐' }}
+              </span>
+            </div>
+          </div>
+
+          <div class="template-notice">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Template only — voting will be activated once we partner with this business.</span>
+          </div>
+
+          <div class="modal-actions">
+            <button class="action-btn secondary" @click="showActivitiesPopup = false">Close</button>
+            <button class="action-btn primary" :disabled="activityVotes.length === 0" @click="showActivitiesPopup = false">
+              Submit Votes ({{ activityVotes.length }})
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- ════════════════════════════════════════════════════════════════
+           VIEW COUPONS POPUP — template only
+           ════════════════════════════════════════════════════════════════ -->
+      <div v-if="showCouponsPopup" class="modal-overlay" @click.self="showCouponsPopup = false">
+        <div class="modal modal-wide">
+          <div class="modal-header-row">
+            <h2 class="modal-title">🎟️ Coupons</h2>
+            <button class="modal-close" @click="showCouponsPopup = false">✕</button>
+          </div>
+          <p class="modal-subtitle">
+            Exclusive deals for <strong>{{ business.name }}</strong> — claim yours!
+          </p>
+
+          <div class="coupons-list">
+            <!-- New Member Coupon — always shown -->
+            <div class="coupon-card new-member">
+              <div class="coupon-ribbon">NEW MEMBER</div>
+              <div class="coupon-body">
+                <div class="coupon-value">10% OFF</div>
+                <div class="coupon-detail">
+                  <strong>Welcome Coupon</strong>
+                  <span>Valid for all new members on their first visit.</span>
+                </div>
+                <button class="coupon-claim-btn claimed" disabled>🎉 Auto-Applied</button>
+              </div>
+            </div>
+
+            <!-- Explore More coupons (template placeholders) -->
+            <div v-for="(coupon, i) in templateCoupons" :key="i" class="coupon-card explore">
+              <div class="coupon-body">
+                <div class="coupon-value">{{ coupon.value }}</div>
+                <div class="coupon-detail">
+                  <strong>{{ coupon.title }}</strong>
+                  <span>{{ coupon.desc }}</span>
+                </div>
+                <button class="coupon-claim-btn" disabled>🔒 Coming Soon</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="template-notice">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
+            <span>Template only — real coupons will be available once we collaborate with this business.</span>
+          </div>
+
+          <div class="modal-actions">
+            <button class="action-btn secondary" @click="showCouponsPopup = false">Close</button>
+          </div>
+        </div>
+      </div>
+    </template>
+
+    <!-- Back to search floating link -->
+    <router-link to="/search" class="fab-back" title="Back to search">
+      <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+    </router-link>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useBusinessDetail } from '@/composables/useBusinessDetail'
+
+const props = defineProps({
+  id: { type: [String, Number], required: true }
+})
+
+const {
+  business, loading, error,
+  bannerUrl, highlights, customersSay,
+  allReviews, totalReviewCount,
+  reviewsNext, reviewSort, reviewsLoading,
+  bookmarked,
+  fetchBusiness, fetchReviews, loadMoreReviews, changeReviewSort,
+  fetchBookmarkState, onToggleBookmark,
+  submitReview, onVoteReview,
+} = useBusinessDetail(props.id)
+
+// ── Load more reviews state ──────────────────────────────────────────────
+const loadingMoreReviews = ref(false)
+
+async function handleLoadMore() {
+  loadingMoreReviews.value = true
+  await loadMoreReviews()
+  loadingMoreReviews.value = false
+}
+
+// ── Review form state ────────────────────────────────────────────────────
+const showReviewForm   = ref(false)
+const newRating        = ref(0)
+const newReviewText    = ref('')
+const submittingReview = ref(false)
+const reviewError      = ref('')
+
+// ── Vote for Activities state (template only) ────────────────────────────
+const showActivitiesPopup = ref(false)
+const activityVotes       = ref([])
+
+const templateActivities = [
+  { emoji: '🎵', title: 'Live Music Night',   desc: 'Local artists perform live at the venue.' },
+  { emoji: '🎨', title: 'Art Workshop',       desc: 'Hands-on creative workshops for all ages.' },
+  { emoji: '🍳', title: 'Cooking Class',      desc: 'Learn recipes from the chef.' },
+  { emoji: '🧘', title: 'Wellness Session',   desc: 'Yoga, meditation, or fitness events.' },
+  { emoji: '🎤', title: 'Open Mic / Karaoke', desc: 'Show off your talent on stage.' },
+  { emoji: '🎲', title: 'Game Night',         desc: 'Board games, trivia, and more.' },
+  { emoji: '📸', title: 'Photo Walk',         desc: 'Explore and photograph the neighbourhood.' },
+  { emoji: '🤝', title: 'Networking Mixer',   desc: 'Meet local entrepreneurs and creatives.' },
+]
+
+function toggleActivityVote(idx) {
+  const pos = activityVotes.value.indexOf(idx)
+  if (pos >= 0) activityVotes.value.splice(pos, 1)
+  else activityVotes.value.push(idx)
+}
+
+// ── View Coupons state (template only) ───────────────────────────────────
+const showCouponsPopup = ref(false)
+
+const templateCoupons = [
+  { value: '15% OFF', title: 'Weekend Special',    desc: 'Valid on Saturdays & Sundays.' },
+  { value: '$5 OFF',  title: 'Lunch Deal',         desc: 'Orders over $25 between 11am–2pm.' },
+  { value: 'BOGO',    title: 'Bring a Friend',     desc: 'Buy one, get one free on select items.' },
+  { value: '20% OFF', title: 'Happy Hour',         desc: 'Drinks & appetizers, 4pm–6pm weekdays.' },
+]
+
+async function handleSubmitReview() {
+  submittingReview.value = true
+  reviewError.value = ''
+  try {
+    await submitReview({ rating: newRating.value, description: newReviewText.value })
+    showReviewForm.value = false
+    newRating.value = 0
+    newReviewText.value = ''
+  } catch (err) {
+    reviewError.value = err.response?.data?.detail
+      || err.response?.data?.non_field_errors?.[0]
+      || 'Failed to submit. Are you logged in with a verified email?'
+  } finally {
+    submittingReview.value = false
+  }
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────
+const starsDisplay = computed(() => {
+  const r = Math.round(Number(business.value?.avg_rating || 0))
+  return '★'.repeat(r) + '☆'.repeat(5 - r)
+})
+
+const weekdayHours = computed(() =>
+  business.value?.opening_hours?.weekdayDescriptions || []
+)
+
+const todayIndex = computed(() => {
+  const d = new Date().getDay() // 0=Sun
+  // weekdayDescriptions: Mon=0 .. Sun=6
+  return d === 0 ? 6 : d - 1
+})
+
+const voteEmoji = { useful: '👍', funny: '😄', cool: '😎' }
+
+function formatDate(d) {
+  if (!d) return ''
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+
+// ── Init ─────────────────────────────────────────────────────────────────
+onMounted(async () => {
+  await fetchBusiness()
+  fetchReviews()
+  fetchBookmarkState()
+})
+</script>
+
+<style scoped>
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* LAYOUT                                                                    */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.detail-page {
+  min-height: 100vh;
+  background: var(--color-bg, #0a1220);
+  color: var(--color-text, #f1f5f9);
+}
+
+.state-msg {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 120px 20px; color: var(--color-text-muted); font-size: 15px;
+}
+.state-msg.error { color: #f87171; }
+.back-link { color: var(--color-primary); font-size: 14px; }
+
+.section {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 28px 32px;
+  border-bottom: 1px solid var(--color-border, #1e293b);
+}
+.section-title {
+  font-size: 18px; font-weight: 600; color: var(--color-accent, #f59e0b);
+  margin-bottom: 16px;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* HERO BANNER                                                                */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.hero {
+  position: relative;
+  height: 280px;
+  background: var(--color-surface) center / cover no-repeat;
+  display: flex;
+  align-items: flex-end;
+}
+.hero-overlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(to top, rgba(10,18,32,0.95) 0%, rgba(10,18,32,0.3) 100%);
+}
+.hero-content {
+  position: relative; z-index: 1;
+  display: flex; align-items: flex-end; gap: 20px;
+  width: 100%; max-width: 900px; margin: 0 auto;
+  padding: 24px 32px;
+}
+
+.hero-logo {
+  width: 80px; height: 80px; flex-shrink: 0;
+  border-radius: 12px; overflow: hidden;
+  border: 3px solid rgba(255,255,255,0.15);
+  background: var(--color-surface);
+}
+.logo-img { width: 100%; height: 100%; object-fit: cover; }
+.logo-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; font-weight: 700; color: var(--color-primary);
+  background: rgba(37,99,235,0.1);
+}
+
+.hero-text { flex: 1; min-width: 0; }
+.business-name {
+  font-size: 28px; font-weight: 700; margin: 0 0 6px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hero-rating { display: flex; align-items: center; gap: 8px; font-size: 14px; }
+.stars { color: var(--color-accent, #f59e0b); font-size: 16px; letter-spacing: 1px; }
+.rating-num { font-weight: 700; font-size: 16px; }
+.rating-count { color: var(--color-text-muted); }
+
+.hero-tags { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.hero-tag {
+  padding: 2px 10px; font-size: 11px; border-radius: 999px;
+  background: rgba(99,102,241,0.15); border: 1px solid rgba(99,102,241,0.25);
+  color: #a5b4fc;
+}
+
+.bookmark-btn {
+  flex-shrink: 0; width: 44px; height: 44px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%; border: 1px solid var(--color-border);
+  background: rgba(0,0,0,0.4); color: var(--color-text-muted);
+  cursor: pointer; transition: all 0.2s;
+}
+.bookmark-btn:hover { border-color: #ef4444; color: #ef4444; }
+.bookmark-btn.active { color: #ef4444; border-color: #ef4444; background: rgba(239,68,68,0.15); }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* CONTACT BAR                                                                */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.contact-bar {
+  max-width: 900px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between;
+  flex-wrap: wrap; gap: 12px;
+  padding: 16px 32px;
+  border-bottom: 1px solid var(--color-border, #1e293b);
+}
+.contact-items { display: flex; flex-wrap: wrap; gap: 16px; }
+.contact-item {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 13px; color: var(--color-text-muted);
+  text-decoration: none; transition: color 0.15s;
+}
+.contact-item:hover { color: var(--color-text); text-decoration: none; }
+
+.action-buttons { display: flex; gap: 8px; flex-wrap: wrap; }
+.action-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 18px; border-radius: 8px; font-size: 13px; font-weight: 500;
+  cursor: pointer; border: none; transition: background 0.15s;
+}
+.action-btn.primary {
+  background: var(--color-accent, #f59e0b); color: #1a1a1a;
+}
+.action-btn.primary:hover { background: #d97706; }
+.action-btn.primary:disabled { opacity: 0.5; cursor: not-allowed; }
+.action-btn.secondary {
+  background: var(--color-surface); color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+.action-btn.secondary:hover { border-color: #475569; }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* DESCRIPTION                                                                */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.description-text {
+  font-size: 14px; line-height: 1.7; color: var(--color-text-muted);
+  margin: 0;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* HOURS                                                                      */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.hours-grid { display: flex; flex-direction: column; gap: 4px; }
+.hour-row {
+  font-size: 13px; color: var(--color-text-muted); padding: 4px 8px; border-radius: 4px;
+}
+.hour-row.today { background: rgba(37,99,235,0.1); color: var(--color-text); font-weight: 600; }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* HIGHLIGHTS                                                                 */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.highlights-grid {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 12px;
+}
+.highlight-card {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 14px; border-radius: 10px;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+}
+.highlight-icon { font-size: 20px; flex-shrink: 0; }
+.highlight-title { font-size: 13px; display: block; }
+.highlight-desc { font-size: 12px; color: var(--color-text-muted); margin: 2px 0 0; }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* REVIEWS                                                                    */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.reviews-section { padding-bottom: 60px; }
+.reviews-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+.reviews-summary { display: flex; align-items: center; gap: 14px; }
+.big-rating { font-size: 42px; font-weight: 800; line-height: 1; }
+.summary-right { display: flex; flex-direction: column; }
+.review-total { font-size: 13px; color: var(--color-text-muted); }
+
+/* Customers Say */
+.customers-say {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 18px; margin-bottom: 20px;
+  background: linear-gradient(135deg, rgba(99,102,241,0.08), rgba(139,92,246,0.06));
+  border: 1px solid rgba(99,102,241,0.18); border-radius: 10px;
+}
+.cs-icon {
+  flex-shrink: 0; width: 32px; height: 32px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; background: rgba(99,102,241,0.15); color: #a5b4fc;
+}
+.cs-label {
+  display: block; font-size: 12px; text-transform: uppercase;
+  letter-spacing: 0.04em; color: #a5b4fc; margin-bottom: 4px;
+}
+.cs-text { font-size: 13px; line-height: 1.5; color: var(--color-text-muted); margin: 0; }
+
+/* Sort */
+.review-sort { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 16px; }
+.sort-label { font-size: 13px; color: var(--color-text-muted); margin-right: 4px; }
+.sort-btn {
+  padding: 5px 14px; font-size: 12px; border-radius: 999px; cursor: pointer;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  color: var(--color-text-muted); transition: all 0.15s;
+}
+.sort-btn:hover { border-color: #475569; color: var(--color-text); }
+.sort-btn.active { background: rgba(37,99,235,0.15); border-color: var(--color-primary); color: #93c5fd; font-weight: 500; }
+
+/* Reviews loading */
+.reviews-loading {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  padding: 40px 0; color: var(--color-text-muted); font-size: 14px;
+}
+.spinner-small {
+  width: 20px; height: 20px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+/* No reviews */
+.no-reviews {
+  text-align: center; padding: 40px 20px;
+  color: var(--color-text-muted); font-size: 14px;
+}
+
+/* Review cards */
+.review-list { display: flex; flex-direction: column; gap: 20px; }
+.review-card {
+  padding: 18px; border-radius: 10px;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+}
+.review-card-header { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+.reviewer-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 16px;
+}
+.reviewer-avatar.google { background: rgba(234,179,8,0.15); color: var(--color-accent); }
+.reviewer-avatar.user   { background: rgba(37,99,235,0.15); color: var(--color-primary); }
+
+.reviewer-info { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.reviewer-stars { color: var(--color-accent); font-size: 13px; letter-spacing: 0.5px; }
+.reviewer-name { font-weight: 600; font-size: 14px; }
+.review-date { font-size: 12px; color: var(--color-text-muted); }
+.source-badge {
+  font-size: 10px; padding: 1px 8px; border-radius: 999px;
+  background: rgba(234,179,8,0.12); color: var(--color-accent); font-weight: 600;
+}
+
+.review-body { font-size: 14px; line-height: 1.6; color: var(--color-text-muted); margin: 0; }
+.review-photo { margin-top: 12px; max-height: 200px; border-radius: 8px; }
+
+.vote-bar { display: flex; gap: 8px; margin-top: 12px; }
+.vote-btn {
+  padding: 4px 12px; font-size: 12px; border-radius: 999px; cursor: pointer;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--color-border);
+  color: var(--color-text-muted); transition: all 0.15s;
+}
+.vote-btn:hover { border-color: #475569; color: var(--color-text); }
+.vote-btn.voted { background: rgba(37,99,235,0.15); border-color: var(--color-primary); color: #93c5fd; }
+
+/* Load more section */
+.load-more-section { display: flex; justify-content: center; margin-top: 24px; }
+.load-more-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 12px 36px; min-width: 180px;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  color: var(--color-text); border-radius: 8px; font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: background 0.2s, border-color 0.2s;
+}
+.load-more-btn:hover:not(:disabled) { background: rgba(59,130,246,0.1); border-color: var(--color-primary); }
+.load-more-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* WRITE REVIEW MODAL                                                         */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  display: flex; align-items: center; justify-content: center;
+}
+.modal {
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  border-radius: 14px; padding: 28px; width: 90%; max-width: 480px;
+}
+.modal-title { font-size: 18px; font-weight: 600; margin-bottom: 16px; }
+.star-picker { display: flex; gap: 6px; margin-bottom: 14px; }
+.star-pick {
+  font-size: 28px; background: none; border: none; cursor: pointer;
+  color: var(--color-border); transition: color 0.1s;
+}
+.star-pick.filled { color: var(--color-accent); }
+.review-input {
+  width: 100%; padding: 12px; border-radius: 8px; resize: vertical;
+  background: var(--color-bg); border: 1px solid var(--color-border);
+  color: var(--color-text); font-size: 14px; font-family: inherit;
+}
+.review-input::placeholder { color: var(--color-text-muted); }
+.modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+.review-error { color: #f87171; font-size: 13px; margin-top: 10px; }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* FAB BACK BUTTON                                                            */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.fab-back {
+  position: fixed; bottom: 24px; left: 24px; z-index: 100;
+  width: 44px; height: 44px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--color-surface); border: 1px solid var(--color-border);
+  color: var(--color-text); box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+  transition: background 0.2s; text-decoration: none;
+}
+.fab-back:hover { background: rgba(255,255,255,0.08); text-decoration: none; }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* WEBSITE LINK — highlighted in contact bar                                  */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.website-link {
+  color: var(--color-primary, #2563eb) !important;
+  font-weight: 500;
+}
+.website-link:hover { color: #60a5fa !important; }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* ACTION BUTTON VARIANT                                                      */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.action-btn.accent-secondary {
+  background: rgba(99,102,241,0.12);
+  color: #a5b4fc;
+  border: 1px solid rgba(99,102,241,0.25);
+}
+.action-btn.accent-secondary:hover {
+  background: rgba(99,102,241,0.22);
+  border-color: rgba(99,102,241,0.4);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* MODAL SHARED EXTRAS                                                        */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.modal-wide { max-width: 560px; }
+.modal-header-row {
+  display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;
+}
+.modal-close {
+  width: 32px; height: 32px; border-radius: 8px; border: none;
+  background: rgba(255,255,255,0.06); color: var(--color-text-muted);
+  font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background 0.15s;
+}
+.modal-close:hover { background: rgba(255,255,255,0.12); color: var(--color-text); }
+.modal-subtitle {
+  font-size: 13px; color: var(--color-text-muted); margin: 0 0 18px; line-height: 1.5;
+}
+
+/* Template Notice Banner */
+.template-notice {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 14px; margin: 16px 0 0; border-radius: 8px;
+  background: rgba(234,179,8,0.08); border: 1px solid rgba(234,179,8,0.2);
+  font-size: 12px; color: #fbbf24; line-height: 1.4;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* ACTIVITIES POPUP                                                           */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.activities-list { display: flex; flex-direction: column; gap: 8px; max-height: 380px; overflow-y: auto; }
+.activity-card {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 16px; border-radius: 10px;
+  background: rgba(255,255,255,0.03); border: 1px solid var(--color-border);
+  cursor: pointer; transition: all 0.15s; user-select: none;
+}
+.activity-card:hover { background: rgba(99,102,241,0.08); border-color: rgba(99,102,241,0.25); }
+.activity-card.voted {
+  background: rgba(99,102,241,0.12); border-color: rgba(99,102,241,0.35);
+}
+.activity-emoji { font-size: 26px; flex-shrink: 0; }
+.activity-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.activity-info strong { font-size: 14px; }
+.activity-desc { font-size: 12px; color: var(--color-text-muted); }
+.activity-vote-icon { font-size: 18px; flex-shrink: 0; }
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* COUPONS POPUP                                                              */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.coupons-list { display: flex; flex-direction: column; gap: 12px; max-height: 400px; overflow-y: auto; }
+.coupon-card {
+  position: relative; border-radius: 12px; overflow: hidden;
+  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+}
+.coupon-card.new-member {
+  border-color: rgba(234,179,8,0.35);
+  background: linear-gradient(135deg, rgba(234,179,8,0.06), rgba(234,179,8,0.02));
+}
+.coupon-ribbon {
+  position: absolute; top: 0; right: 0;
+  padding: 3px 14px; font-size: 9px; font-weight: 700; letter-spacing: 0.06em;
+  background: var(--color-accent, #f59e0b); color: #1a1a1a;
+  border-radius: 0 0 0 10px;
+}
+.coupon-body {
+  display: flex; align-items: center; gap: 16px; padding: 16px 18px;
+}
+.coupon-value {
+  font-size: 20px; font-weight: 800; color: var(--color-accent, #f59e0b);
+  flex-shrink: 0; min-width: 72px; text-align: center;
+}
+.coupon-detail { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.coupon-detail strong { font-size: 14px; }
+.coupon-detail span { font-size: 12px; color: var(--color-text-muted); }
+.coupon-claim-btn {
+  padding: 6px 14px; font-size: 12px; font-weight: 600; border-radius: 8px;
+  border: 1px solid var(--color-border); background: rgba(255,255,255,0.04);
+  color: var(--color-text-muted); cursor: default; flex-shrink: 0;
+}
+.coupon-claim-btn.claimed {
+  border-color: rgba(234,179,8,0.3); color: var(--color-accent);
+  background: rgba(234,179,8,0.08);
+}
+
+/* ══════════════════════════════════════════════════════════════════════════ */
+/* SPINNER                                                                    */
+/* ══════════════════════════════════════════════════════════════════════════ */
+.spinner {
+  width: 28px; height: 28px;
+  border: 3px solid var(--color-border, #1e293b);
+  border-top-color: var(--color-primary, #2563eb);
+  border-radius: 50%; animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
