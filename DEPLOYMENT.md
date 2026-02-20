@@ -76,7 +76,7 @@ sudo usermod -aG docker $USER
 ```bash
 # From your local machine
 gcloud compute scp --recurse \
-  backend/ frontend/ postgres/ nginx/ docker-compose.yml .env.production.example Makefile \
+  backend/ frontend-demo/ frontend-user/ postgres/ nginx/ docker-compose.yml .env.production.example Makefile \
   fblc:~/FBLC/
 ```
 

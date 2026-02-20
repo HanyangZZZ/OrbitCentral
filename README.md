@@ -48,7 +48,7 @@ Browser / iOS app
 ```
 FBLC/
 ├── backend/                 Django REST API                → see backend/README.md
-├── frontend/                Vue 3 + Capacitor app          → see frontend/README.md
+├── frontend-demo/           API testing demo app           → see frontend-demo/README.md
 ├── postgres/                Custom PostgreSQL image (pgvector + PostGIS)
 ├── nginx/                   Reverse proxy + frontend build (Dockerfile)
 ├── docker-compose.yml       7 containers: postgres, redis, django, celery, nginx, adminer, flower
@@ -145,8 +145,8 @@ Key variables in `.env` (see `.env.production.example` for the full list):
 | Doc | Covers |
 |-----|--------|
 | **[backend/README.md](backend/README.md)** | API endpoints, models, services, management commands |
-| **[frontend/README.md](frontend/README.md)** | Vue app, API client reference, Capacitor (iOS) |
-| **[frontend/API.md](frontend/API.md)** | Complete API reference with examples |
+| **[frontend-demo/README.md](frontend-demo/README.md)** | API demo app, client reference |
+| **[frontend-demo/API.md](frontend-demo/API.md)** | Complete API reference with examples |
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | Server setup, deployment steps, HTTPS, backups |
 
 ---

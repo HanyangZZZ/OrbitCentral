@@ -107,8 +107,8 @@ deploy-frontend: ## Rebuild and deploy both frontends (user + demo) via nginx
 	@echo "Validating frontend sources..."
 	@grep -q 'src="/src/main.js"' frontend-user/index.html \
 		|| (echo "\033[31mERROR: frontend-user/index.html is corrupted — missing /src/main.js entry point.\033[0m" && exit 1)
-	@grep -q 'src="/src/main.js"' frontend/index.html \
-		|| (echo "\033[31mERROR: frontend/index.html is corrupted — missing /src/main.js entry point.\033[0m" && exit 1)
+	@grep -q 'src="/src/main.js"' frontend-demo/index.html \
+		|| (echo "\033[31mERROR: frontend-demo/index.html is corrupted — missing /src/main.js entry point.\033[0m" && exit 1)
 	@echo "Building nginx (--no-cache)..."
 	docker compose build --no-cache nginx
 	@echo "Restarting nginx..."
