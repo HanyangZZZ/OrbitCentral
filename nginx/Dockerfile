@@ -1,7 +1,7 @@
 # =============================================================================
 # Nginx + Frontend builds
 # Stage 1: Build user-facing SPA (orbitcentral.ca)      from frontend-user/
-# Stage 2: Build API demo SPA   (test.orbitcentral.ca)  from frontend/
+# Stage 2: Build API demo SPA   (test.orbitcentral.ca)  from frontend-demo/
 # Stage 3: Serve both with Nginx
 # =============================================================================
 
@@ -18,11 +18,11 @@ RUN npm run build && echo "User frontend build complete."
 # ── Stage 2: Build API demo frontend (test.orbitcentral.ca) ──────────────────
 FROM node:20-alpine AS demo-build
 WORKDIR /build
-COPY frontend/package.json frontend/package-lock.json ./
+COPY frontend-demo/package.json frontend-demo/package-lock.json ./
 RUN npm ci --ignore-scripts
-COPY frontend/ .
+COPY frontend-demo/ .
 RUN grep -q 'src="/src/main.js"' index.html \
-    || (echo "ERROR: frontend/index.html missing /src/main.js entry" && exit 1)
+    || (echo "ERROR: frontend-demo/index.html missing /src/main.js entry" && exit 1)
 RUN npm run build && echo "API demo frontend build complete."
 
 # ── Stage 3: Nginx ───────────────────────────────────────────────────────────
