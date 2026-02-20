@@ -51,9 +51,6 @@
 
         <p v-if="error" class="error-msg">{{ error }}</p>
 
-        <!-- Invisible reCAPTCHA widget anchor -->
-        <div :id="captchaId"></div>
-
         <button type="submit" class="btn btn-primary btn-full" :disabled="submitting">
           {{ submitting ? 'Logging in…' : 'Log In' }}
         </button>
@@ -76,7 +73,7 @@ import useCaptcha from '@/composables/useCaptcha'
 const router = useRouter()
 const route  = useRoute()
 const { setUser } = useAuth()
-const { containerId: captchaId, execute: executeCaptcha } = useCaptcha('recaptcha-login')
+const { execute: executeCaptcha } = useCaptcha()
 
 const username   = ref('')
 const password   = ref('')
@@ -88,7 +85,7 @@ async function handleLogin() {
   error.value = ''
 
   try {
-    const captchaToken = await executeCaptcha()
+    const captchaToken = await executeCaptcha('login')
     const { data } = await login(username.value.trim(), password.value, captchaToken)
     setUser(data.user, data.token)
     // Redirect to the page the user was trying to reach, or Home

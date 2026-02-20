@@ -88,9 +88,6 @@
           <li v-for="(err, i) in errors" :key="i" class="error-msg">{{ err }}</li>
         </ul>
 
-        <!-- Invisible reCAPTCHA widget anchor -->
-        <div :id="captchaId"></div>
-
         <button type="submit" class="btn btn-primary btn-full" :disabled="submitting">
           {{ submitting ? 'Creating account…' : 'Create Account' }}
         </button>
@@ -117,7 +114,7 @@ import useCaptcha from '@/composables/useCaptcha'
 
 const router = useRouter()
 const { setUser } = useAuth()
-const { containerId: captchaId, execute: executeCaptcha } = useCaptcha('recaptcha-register')
+const { execute: executeCaptcha } = useCaptcha()
 
 const email = ref('')
 const username = ref('')
@@ -145,7 +142,7 @@ async function handleRegister() {
   submitting.value = true
 
   try {
-    const captchaToken = await executeCaptcha()
+    const captchaToken = await executeCaptcha('register')
     const payload = {
       email: email.value.trim(),
       username: username.value.trim(),
