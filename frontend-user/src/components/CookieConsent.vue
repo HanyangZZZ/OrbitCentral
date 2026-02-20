@@ -53,13 +53,18 @@ function decline() {
   localStorage.removeItem(STORAGE_KEY)
   visible.value = false
 }
+</script>
+
+<!-- Separate non-setup script for named exports -->
+<script>
+const CONSENT_KEY = 'cookie_consent'
 
 /**
  * Utility readable by any module:
  *   import { hasCookieConsent } from '@/components/CookieConsent.vue'
  */
 export function hasCookieConsent() {
-  return localStorage.getItem(STORAGE_KEY) === 'accepted'
+  return localStorage.getItem(CONSENT_KEY) === 'accepted'
 }
 </script>
 
