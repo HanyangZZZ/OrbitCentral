@@ -29,12 +29,15 @@ Request → Nginx :80 → Gunicorn/Django :8000 → PostgreSQL :5432
 | File | Purpose |
 |------|---------|
 | `models/business.py` | Category, Tag, SearchedArea, Business models |
-| `serializers.py` | DRF serializers (Tag, Category, Business, BusinessSearch) |
-| `viewsets.py` | API logic — TagViewSet, CategoryViewSet, BusinessViewSet |
-| `tasks.py` | Celery tasks — wraps services.py with retry logic |
-| `services.py` | Google Places import, AI classification, tag consolidation |
-| `urls.py` | URL routing (`/api/tags/`, `/api/categories/`, `/api/businesses/`) |
-| `pagination.py` | Page-based pagination (50/page, max 100) |
+| `models/user.py` | UserProfile, EmailVerificationToken, PasswordResetToken |
+| `serializers/` | DRF serializers (auth, business, review, bookmark) |
+| `viewsets/` | API logic — Auth, Business, Review, Bookmark, Category, Tag, AIReview |
+| `services/` | Google Places import, AI classification, captcha, geocoding, personalization |
+| `tasks/` | Celery tasks — email sending, auto-import |
+| `urls.py` | URL routing (DRF router) |
+| `pagination.py` | Page-based + cursor pagination |
+| `permissions.py` | IsEmailVerified, IsOwnerOrReadOnly |
+| `authentication.py` | ExpiringTokenAuthentication (72h TTL) + HttpOnly cookie |
 | `exceptions.py` | Consistent error response formatting |
 | `admin.py` | Django admin panel registration |
 
@@ -219,6 +222,50 @@ GET /api/businesses/stats/
 ```
 
 Returns: `total_businesses`, `with_embeddings`, `with_tags`, `tag_count`, `searched_areas`, `avg_rating`, `top_tags` (top 15 by usage).
+
+### Authentication
+
+| Method | URL | Auth | Description |
+|--------|-----|------|-------------|
+| `POST` | `/api/auth/register/` | Public | Create account (+ reCAPTCHA v3) |
+| `POST` | `/api/auth/login/` | Public | Log in (+ reCAPTCHA v3) → returns token |
+| `POST` | `/api/auth/logout/` | Token | Delete token + clear cookie |
+| `GET` | `/api/auth/me/` | Token | Get current user profile |
+| `PATCH` | `/api/auth/me/` | Token | Update profile |
+| `DELETE` | `/api/auth/me/` | Token | Delete account (requires password confirmation) |
+| `POST` | `/api/auth/verify-email/` | Public | Verify email with token |
+| `POST` | `/api/auth/resend-verify/` | Token | Resend verification email |
+| `POST` | `/api/auth/forgot-password/` | Public | Request reset email (+ reCAPTCHA) |
+| `POST` | `/api/auth/reset-password/` | Public | Reset password with token |
+
+Token auth: `Authorization: Token <key>` header. Tokens expire after 72 hours.
+
+### Reviews
+
+| Method | URL | Auth | Description |
+|--------|-----|------|-------------|
+| `GET` | `/api/reviews/?business=<id>` | Public | List reviews for a business |
+| `POST` | `/api/reviews/` | Verified | Create review (optional base64 photo) |
+| `PATCH` | `/api/reviews/{id}/` | Owner | Update review |
+| `DELETE` | `/api/reviews/{id}/` | Owner | Delete review |
+| `POST` | `/api/reviews/{id}/vote/` | Verified | Toggle vote (useful/funny/cool) |
+
+### Bookmarks
+
+| Method | URL | Auth | Description |
+|--------|-----|------|-------------|
+| `GET` | `/api/bookmarks/` | Verified | List user's bookmarks |
+| `POST` | `/api/bookmarks/toggle/` | Verified | Toggle bookmark on/off |
+| `GET` | `/api/bookmarks/check/?business=<id>` | Verified | Check if bookmarked |
+| `GET` | `/api/bookmarks/ids/` | Verified | List bookmarked business IDs |
+
+### AI Reviews
+
+| Method | URL | Auth | Description |
+|--------|-----|------|-------------|
+| `POST` | `/api/ai-reviews/` | Verified | Start AI review session |
+| `POST` | `/api/ai-reviews/{id}/message/` | Verified | Send message in review chat |
+| `POST` | `/api/ai-reviews/{id}/confirm/` | Verified | Confirm and post the AI-generated review |
 
 ---
 

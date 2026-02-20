@@ -58,7 +58,8 @@ FBLC/
 ├── docker-compose.yml       8 containers: postgres, redis, django, celery, nginx, certbot, adminer, flower
 ├── Makefile                 Shortcut commands (run make help)
 ├── DEPLOYMENT.md            Server deployment guide
-└── .env.production.example  Template for secrets / API keys
+├── SECURITY_IMPROVEMENTS.md Future security hardening items
+└── .env.example             Template for secrets / API keys
 ```
 
 ## Quick Start
@@ -67,7 +68,7 @@ Make sure [Docker Desktop](https://www.docker.com/products/docker-desktop/) is i
 
 ```bash
 # 1. Copy the environment template and fill in your values
-cp .env.production.example .env
+cp .env.example .env
 # → Set OPENAI_API_KEY, GOOGLE_PLACES_API_KEY, PG_PASSWORD, DJANGO_SECRET_KEY
 
 # 2. Build and start everything
@@ -116,7 +117,7 @@ Run `make help` to see all available commands.
 
 ## Environment Variables
 
-Key variables in `.env` (see `.env.production.example` for the full list):
+Key variables in `.env` (see `.env.example` for the full list):
 
 | Variable | Required | Description |
 |----------|----------|-------------|
@@ -157,6 +158,32 @@ Key variables in `.env` (see `.env.production.example` for the full list):
 | **[frontend-demo/README.md](frontend-demo/README.md)** | API demo app, client reference |
 | **[frontend-demo/docs/](frontend-demo/docs/)** | Complete API reference (13 endpoint docs) |
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | Server setup, deployment steps, HTTPS, backups |
+| **[SECURITY_IMPROVEMENTS.md](SECURITY_IMPROVEMENTS.md)** | Security audit findings & future hardening roadmap |
+
+## External Services & Accounts
+
+| Service | Purpose | Where Used |
+|---------|---------|------------|
+| **Google Cloud Platform** | Hosting (GCE VM), media storage (GCS bucket `orbit-media-prod`) | Server, photo uploads |
+| **OpenAI** | Embeddings (`text-embedding-3-small`), AI classification & reviews (`gpt-4.1-mini`) | Backend services |
+| **Google Places API** | Business data import, photo proxy | Backend import pipeline |
+| **Google reCAPTCHA v3** | Bot protection on login/register | Frontend + backend verification |
+| **Brevo** | Transactional email (verification, password reset) | Celery email tasks |
+| **Let's Encrypt** | Free SSL certificates (auto-renewed via Certbot) | Nginx |
+
+All API keys and secrets are stored in the server's `~/FBLC/.env` file (never committed to git).
+
+## Handoff Checklist
+
+For the next team picking up this project:
+
+1. **Get access** to the GCP project (`consummate-sled-487120-u3`) and `gcloud compute ssh fblc`
+2. **Read** [DEPLOYMENT.md](DEPLOYMENT.md) for server operations
+3. **Review** [SECURITY_IMPROVEMENTS.md](SECURITY_IMPROVEMENTS.md) for pending security items
+4. **Rotate secrets** — generate new `DJANGO_SECRET_KEY`, `PG_PASSWORD`, `FLOWER_PASSWORD` in `~/FBLC/.env` on the server
+5. **SSL cert** — check expiry with `make ssl-status`, renew with `make ssl-renew` if needed
+6. **Database backup** — run `make backup` before making changes
+7. **Env vars** — see [.env.example](.env.example) for all required variables
 
 ---
 
