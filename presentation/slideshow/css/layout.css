@@ -1,0 +1,179 @@
+/* ==========================================================================
+   Page Layout — Apple Keynote Clean White
+   ========================================================================== */
+
+#content {
+  margin-left: var(--toc-width);
+  min-height: 100vh;
+}
+
+/* --- Sections --- */
+.section {
+  padding: var(--section-py) var(--section-px);
+  position: relative;
+  background: var(--color-bg);
+}
+.section:nth-child(even) { background: var(--color-bg); }
+.section:nth-child(odd)  { background: var(--color-bg); }
+
+.section-inner {
+  max-width: var(--content-max);
+  margin: 0 auto;
+}
+
+/* --- Section Headers --- */
+.section-header { margin-bottom: 3rem; }
+
+.section-label {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--color-primary);
+  margin-bottom: 12px;
+}
+
+.section-title {
+  font-size: 3rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 0.4rem;
+  color: var(--color-text);
+}
+
+.section-subtitle {
+  font-size: 1.1rem;
+  color: var(--color-text-muted);
+  max-width: 640px;
+  font-weight: 400;
+}
+
+.feature-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--color-primary);
+  margin-bottom: 12px;
+}
+
+/* --- Content Typography --- */
+.section-inner p  { margin-bottom: 1em; color: var(--color-text-light); font-weight: 400; }
+.section-inner h3 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  margin: 3rem 0 1rem;
+  color: var(--color-text);
+  letter-spacing: -0.01em;
+}
+.section-inner h4 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 1.5rem 0 0.6rem;
+  color: var(--color-text);
+}
+.section-inner ul,
+.section-inner ol { padding-left: 1.5em; margin-bottom: 1em; color: var(--color-text-light); }
+.section-inner li { margin-bottom: 0.4em; }
+
+/* --- Two Column Grid --- */
+.two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 48px; align-items: start; }
+.two-col--wide-left  { grid-template-columns: 1.3fr 0.7fr; }
+.two-col--wide-right { grid-template-columns: 0.7fr 1.3fr; }
+
+/* --- Cover Section --- */
+.section--cover {
+  min-height: 100vh;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  text-align: left;
+  background: #FFFFFF !important;
+  border-bottom: none;
+  padding: 0 !important;
+  position: relative;
+  overflow: hidden;
+}
+
+/* Planet background image */
+.cover-planet-bg {
+  position: absolute;
+  inset: 0;
+  background-image: url('https://private-us-east-1.manuscdn.com/sessionFile/AwuzwAWgPan4aHzCFwHE4C/sandbox/slides_resource_ih84ae0lbdmjgem8m6alk-3078bfbb-e2b-prod-us2_1771477523333_na1fn_L2hvbWUvdWJ1bnR1L3NsaWRlc19pbWFnZXMvaGVyb19wbGFuZXRfd2hpdGU.png?x-oss-process=image/resize,w_1560,h_1560/format,webp&Expires=1798761600&Policy=eyJTdGF0ZW1lbnQiOlt7IlJlc291cmNlIjoiaHR0cHM6Ly9wcml2YXRlLXVzLWVhc3QtMS5tYW51c2Nkbi5jb20vc2Vzc2lvbkZpbGUvQXd1endBV2dQYW40YUh6Q0Z3SEU0Qy9zYW5kYm94L3NsaWRlc19yZXNvdXJjZV9paDg0YWUwbGJkbWpnZW04bTZhbGstMzA3OGJmYmItZTJiLXByb2QtdXMyXzE3NzE0Nzc1MjMzMzNfbmExZm5fTDJodmJXVXZkV0oxYm5SMUwzTnNhV1JsYzE5cGJXRm5aWE12YUdWeWIxOXdiR0Z1WlhSZmQyaHBkR1UucG5nP3gtb3NzLXByb2Nlc3M9aW1hZ2UvcmVzaXplLHdfMTU2MCxoXzE1NjAvZm9ybWF0LHdlYnAiLCJDb25kaXRpb24iOnsiRGF0ZUxlc3NUaGFuIjp7IkFXUzpFcG9jaFRpbWUiOjE3OTg3NjE2MDB9fX1dfQ__&Key-Pair-Id=K2HSFNDJXOU9YS&Signature=qLi5ObYrANhAzQ4q2hrOPznq06xEe0OqP9hZQbs-CW3kdBtACwTOW~VeU4AXIyKKQ16226Ii85OQcqjhjk26yplGE-vYPVaLeDbWzIM0gYGHqguWoWaHfU87wH~JEDfN-nmqbvb3DusnkWn9lEL4S-TtFltcVeSH8A3HcDkgSoHaDFyFq0wvmuV9~~0EDuz4FUfjZZRlmzOgqQt0hHLTCS6qRjzihpf3y7vgqVWCqIh7fc8gY~3aIUd0dN7PI5QQRwN7dY591frlNuNPect7xTVKgBvt6-ycYQykbaNTmn2tuAwNOOn7lvp1rp5TdjREJk7UreTiQYxijqApn4YPyw__');
+  background-size: cover;
+  background-position: center;
+  z-index: 0;
+}
+.cover-planet-bg::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.55);
+}
+
+/* Content wrapper over the planet */
+.cover-body {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 80px;
+}
+
+/* Hero text — left-aligned for balance with planet */
+.cover-hero {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  max-width: 600px;
+  padding-left: 40px;
+}
+
+.cover-title {
+  font-size: 11.25rem;
+  font-weight: 800;
+  letter-spacing: -0.045em;
+  margin-bottom: 24px;
+  line-height: 1;
+  color: #0A1628;
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.8);
+  -webkit-background-clip: unset;
+  -webkit-text-fill-color: unset;
+  background-clip: unset;
+  background: none;
+}
+
+.cover-slogan {
+  font-size: 2rem;
+  font-weight: 500;
+  letter-spacing: 4px;
+  text-transform: uppercase;
+  color: #007AFF;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+}
+
+/* Footer bar */
+.cover-footer {
+  display: flex;
+  justify-content: space-between;
+  font-size: 1rem;
+  color: #1D1D1F;
+  font-weight: 500;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+  padding-top: 24px;
+}
+.cover-footer-left span,
+.cover-footer-right span {
+  display: block;
+  margin-bottom: 4px;
+}
+.cover-footer-right {
+  text-align: right;
+}

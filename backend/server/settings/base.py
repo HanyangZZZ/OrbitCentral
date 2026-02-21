@@ -187,7 +187,7 @@ GCS_BUCKET_NAME = os.environ.get('GCS_BUCKET_NAME', 'orbit-media-prod')
 GCS_PUBLIC_URL = f'https://storage.googleapis.com/{GCS_BUCKET_NAME}'
 
 # Max businesses to import per area search (controls Google Places API costs)
-MAX_BUSINESSES_PER_IMPORT = int(os.environ.get('MAX_BUSINESSES_PER_IMPORT', 100))
+MAX_BUSINESSES_PER_IMPORT = int(os.environ.get('MAX_BUSINESSES_PER_IMPORT', 500))
 
 # ── Celery (background task queue) ─────────────────────────────────────────────
 # Broker: Redis instance running in Docker (see docker-compose.yml)

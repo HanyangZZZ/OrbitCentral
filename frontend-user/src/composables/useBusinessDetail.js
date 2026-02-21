@@ -35,6 +35,7 @@ import {
   getBusinessPhotoUrl,
   getReviews,
   createReview,
+  deleteReview,
   voteReview,
   checkBookmark,
   toggleBookmark,
@@ -248,6 +249,7 @@ export function useBusinessDetail(businessId) {
     const user = userReviews.value.map(r => ({
       id: r.id,
       source: 'user',
+      userId: r.user,
       author: r.username || 'User',
       rating: r.rating,
       text: r.description,
@@ -364,6 +366,15 @@ export function useBusinessDetail(businessId) {
     await fetchBusiness()          // refresh avg_rating
   }
 
+  // ── Delete review ──────────────────────────────────────────────────────
+  async function onDeleteReview(reviewId) {
+    try {
+      await deleteReview(reviewId)
+      await fetchReviews()    // refresh list
+      await fetchBusiness()   // refresh avg_rating
+    } catch { /* needs auth / not owner */ }
+  }
+
   // ── Vote on review ─────────────────────────────────────────────────────
   async function onVoteReview(reviewId, voteType) {
     try {
@@ -380,6 +391,6 @@ export function useBusinessDetail(businessId) {
     bookmarked,
     fetchBusiness, fetchReviews, loadMoreReviews, changeReviewSort,
     fetchBookmarkState, onToggleBookmark,
-    submitReview, onVoteReview,
+    submitReview, onDeleteReview, onVoteReview,
   }
 }

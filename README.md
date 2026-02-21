@@ -53,11 +53,17 @@ FBLC/
 ├── backend/                 Django REST API                → see backend/README.md
 ├── frontend-user/           User-facing Vue SPA            → see frontend-user/README.md
 ├── frontend-demo/           API testing demo app           → see frontend-demo/README.md
+├── presentation/            Slideshow & supporting docs    → see presentation/README.md
+├── images/                  Shared project images (logos, screenshots)
 ├── postgres/                Custom PostgreSQL image (pgvector + PostGIS)
 ├── nginx/                   Reverse proxy + dual frontend build (3-stage Dockerfile)
 ├── docker-compose.yml       8 containers: postgres, redis, django, celery, nginx, certbot, adminer, flower
 ├── Makefile                 Shortcut commands (run make help)
 ├── DEPLOYMENT.md            Server deployment guide
+├── BUSINESS_SYSTEM.md       Business discovery system deep-dive
+├── REVIEW_SYSTEM.md         Review system deep-dive
+├── BOOKMARK_SYSTEM.md       Bookmark system deep-dive
+├── ISSUES.md                Known issues & remaining work
 ├── SECURITY_IMPROVEMENTS.md Future security hardening items
 └── .env.example             Template for secrets / API keys
 ```
@@ -91,7 +97,7 @@ curl "http://localhost/api/businesses/search/?q=cozy+coffee&lat=43.6532&lng=-79.
 | API | `https://business.orbitcentral.ca/api/` (prod) · `http://localhost/api/` (dev) |
 | Admin panel | `https://business.orbitcentral.ca/admin/` |
 | Adminer (DB portal) | `https://admin.orbitcentral.ca` |
-| Flower (task monitor) | `https://flower.orbitcentral.ca` |
+| Flower (task monitor) | `https://celery.orbitcentral.ca` |
 | Health check | `https://orbitcentral.ca/health` |
 
 ## Useful Commands
@@ -157,8 +163,13 @@ Key variables in `.env` (see `.env.example` for the full list):
 | **[frontend-user/README.md](frontend-user/README.md)** | User-facing SPA, features, components |
 | **[frontend-demo/README.md](frontend-demo/README.md)** | API demo app, client reference |
 | **[frontend-demo/docs/](frontend-demo/docs/)** | Complete API reference (13 endpoint docs) |
+| **[BUSINESS_SYSTEM.md](BUSINESS_SYSTEM.md)** | Business discovery pipeline deep-dive (~800 lines) |
+| **[REVIEW_SYSTEM.md](REVIEW_SYSTEM.md)** | Review system deep-dive (~900 lines) |
+| **[BOOKMARK_SYSTEM.md](BOOKMARK_SYSTEM.md)** | Bookmark system deep-dive (~780 lines) |
 | **[DEPLOYMENT.md](DEPLOYMENT.md)** | Server setup, deployment steps, HTTPS, backups |
+| **[ISSUES.md](ISSUES.md)** | Known issues & remaining work |
 | **[SECURITY_IMPROVEMENTS.md](SECURITY_IMPROVEMENTS.md)** | Security audit findings & future hardening roadmap |
+| **[presentation/](presentation/)** | Project slideshow & event documentation |
 
 ## External Services & Accounts
 

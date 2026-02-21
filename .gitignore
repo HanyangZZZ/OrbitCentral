@@ -35,3 +35,20 @@ backups/
 # Logs
 *.log
 .vite/
+
+# SSL certificates & keys (sensitive — never commit private keys)
+nginx/ssl/*.key
+nginx/ssl/*.crt
+!nginx/ssl/ssl-params.conf
+
+# Nginx htpasswd (contains hashed passwords)
+nginx/.htpasswd
+
+# Slideshow build artifacts
+presentation/slideshow/node_modules/
+presentation/slideshow/*.pdf
+presentation/slideshow/package-lock.json
+
+# iOS build
+frontend-user/ios/App/App/public/
+frontend-user/ios/App/Pods/

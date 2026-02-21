@@ -41,10 +41,8 @@ Items marked **FIXED** have already been resolved and deployed.
   ```
   Then set `throttle_classes` on each auth action.
 
-### H2. No throttling for authenticated users
-- **File**: `server/settings/base.py`
-- **Risk**: A single authenticated user can make unlimited requests — including expensive vector search calls that hit OpenAI.
-- **Fix**: Add `UserRateThrottle` to `DEFAULT_THROTTLE_CLASSES` with `'user': '1000/hour'`.
+### H2. No throttling for authenticated users — **FIXED** ✅
+Added `UserRateThrottle` to `DEFAULT_THROTTLE_CLASSES` with `'user': '500/hour'` in `base.py`.
 
 ### H3. Anonymous users can trigger expensive Google+OpenAI imports
 - **File**: `api/viewsets/businesses.py` (vector_search action)
@@ -66,10 +64,8 @@ Items marked **FIXED** have already been resolved and deployed.
 - **Risk**: Any compromised container on the Docker network can access Redis, read Celery task data (tokens, user IDs), or flush the broker.
 - **Fix**: Add `--requirepass ${REDIS_PASSWORD}` to the Redis command and update `CELERY_BROKER_URL` to include the password.
 
-### H9. No HTTPS / HSTS
-- **Files**: `nginx/nginx.conf`, `server/settings/production.py`
-- **Risk**: All auth tokens, passwords, and PII transmitted in plaintext.
-- **Fix**: Configure TLS termination (Cloudflare, Let's Encrypt, or load balancer), then enable `SECURE_SSL_REDIRECT=true` and uncomment HSTS settings.
+### H9. No HTTPS / HSTS — **FIXED** ✅
+SSL termination via Let's Encrypt (Certbot auto-renewal). HSTS with `max-age=31536000; includeSubDomains` on all server blocks. HTTP → HTTPS 301 redirect.
 
 ---
 
