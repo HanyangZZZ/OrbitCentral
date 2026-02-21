@@ -1,0 +1,102 @@
+/* ==========================================================================
+   Navigation — Apple Keynote Clean White
+   ========================================================================== */
+
+/* --- Progress Bar --- */
+#progress-bar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 2px;
+  background: var(--color-primary);
+  z-index: 1000;
+  width: 0%;
+  transition: width 0.1s linear;
+}
+
+/* --- TOC Sidebar --- */
+#toc {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--toc-width);
+  height: 100vh;
+  background: var(--color-bg-alt);
+  border-right: none;
+  overflow-y: auto;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+}
+
+.toc-header {
+  padding: 28px 24px 24px;
+  flex-shrink: 0;
+}
+
+.toc-logo {
+  font-family: var(--font-brand);
+  font-weight: 700;
+  font-size: 1.3rem;
+  color: var(--color-text);
+}
+
+.toc-subtitle {
+  display: block;
+  font-size: 0.68rem;
+  color: var(--color-text-muted);
+  margin-top: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+}
+
+#toc-list {
+  list-style: none;
+  padding: 8px 0;
+  flex: 1;
+  overflow-y: auto;
+}
+
+#toc-list li { margin: 0; }
+
+#toc-list a {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 24px;
+  font-size: 0.8rem;
+  color: var(--color-text-muted);
+  text-decoration: none;
+  transition: all 0.15s ease;
+  border-left: 2px solid transparent;
+  font-weight: 500;
+}
+
+#toc-list a:hover {
+  color: var(--color-text);
+}
+
+#toc-list a.active {
+  color: var(--color-text);
+  font-weight: 600;
+  border-left-color: var(--color-primary);
+  background: transparent;
+}
+
+#toc-list .toc-icon {
+  font-size: 0.9rem;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+#toc-list .toc-weight {
+  margin-left: auto;
+  font-size: 0.65rem;
+  color: var(--color-text-muted);
+  font-weight: 400;
+}
+
+/* Scrollbar */
+#toc::-webkit-scrollbar,
+#toc-list::-webkit-scrollbar { width: 0; }

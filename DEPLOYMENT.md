@@ -19,8 +19,20 @@ How to deploy FBLC to a cloud server. This guide uses Google Compute Engine (GCE
 | API (external) | `https://business.orbitcentral.ca` |
 | Admin panel | `https://business.orbitcentral.ca/admin/` |
 | DB portal (Adminer) | `https://admin.orbitcentral.ca` |
-| Task monitor (Flower) | `https://flower.orbitcentral.ca` |
+| Task monitor (Flower) | `https://celery.orbitcentral.ca` |
 | SSL cert expiry | Check with `make ssl-status` |
+
+### Adminer (DB Portal) Credentials
+
+Adminer is protected by nginx basic auth at `https://admin.orbitcentral.ca`.
+
+| Field | Value |
+|-------|-------|
+| Username | `admin` |
+| Password | *(see server `.env` or `nginx/.htpasswd`)* |
+| Config file | `nginx/.htpasswd` |
+
+To reset: `htpasswd -cb nginx/.htpasswd admin NEW_PASSWORD`, then rebuild nginx on the server.
 
 ### SSH Access
 
@@ -43,7 +55,7 @@ cd ~/FBLC
 | A | `test.orbitcentral.ca` | `34.130.223.201` |
 | A | `business.orbitcentral.ca` | `34.130.223.201` |
 | A | `admin.orbitcentral.ca` | `34.130.223.201` |
-| A | `flower.orbitcentral.ca` | `34.130.223.201` |
+| A | `celery.orbitcentral.ca` | `34.130.223.201` |
 
 ## What Gets Deployed
 
@@ -58,7 +70,7 @@ Internet
   ├── test.orbitcentral.ca     → API Demo Vue SPA                                     (pgvector + PostGIS)
   ├── business.orbitcentral.ca → Django REST API + /admin/
   ├── admin.orbitcentral.ca    → [ Adminer :8080 ]
-  ├── flower.orbitcentral.ca   → [ Flower :5555 ]
+  ├── celery.orbitcentral.ca   → [ Flower :5555 ]
   └── unknown Host             → 444 (drop)
                                           │
                               task.delay() │

@@ -100,11 +100,13 @@
         :customers-say="customersSay"
         :reviews="allReviews"
         :current-sort="reviewSort"
+        :current-user-id="currentUserId"
         :loading="reviewsLoading"
         :loading-more="loadingMoreReviews"
         :has-more="!!reviewsNext"
         @sort="changeReviewSort"
         @vote="onVoteReview"
+        @delete="onDeleteReview"
         @load-more="handleLoadMore"
       />
 
@@ -128,6 +130,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useBusinessDetail } from '@/composables/useBusinessDetail'
+import { useAuth } from '@/composables/useAuth'
 
 // Components
 import BusinessHero from '@/components/business/BusinessHero.vue'
@@ -150,8 +153,12 @@ const {
   bookmarked,
   fetchBusiness, fetchReviews, loadMoreReviews, changeReviewSort,
   fetchBookmarkState, onToggleBookmark,
-  submitReview, onVoteReview,
+  submitReview, onDeleteReview, onVoteReview,
 } = useBusinessDetail(props.id)
+
+// ── Auth: current user for delete ownership check ─────────────────────
+const { user: currentUser } = useAuth()
+const currentUserId = computed(() => currentUser.value?.id ?? null)
 
 // ── Local UI state ───────────────────────────────────────────────────────
 const showReviewModal = ref(false)

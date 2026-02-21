@@ -63,7 +63,9 @@
       <ReviewCard
         v-for="r in reviews" :key="r.id"
         :review="r"
+        :current-user-id="currentUserId"
         @vote="(id, type) => $emit('vote', id, type)"
+        @delete="(id) => $emit('delete', id)"
       />
       <div v-if="reviews.length === 0" class="no-reviews">
         <p>No reviews yet. Be the first to share your experience!</p>
@@ -89,12 +91,13 @@ defineProps({
   customersSay: String,
   reviews: { type: Array, default: () => [] },
   currentSort: { type: String, default: '-created_at' },
+  currentUserId: { type: [Number, String], default: null },
   loading: Boolean,
   loadingMore: Boolean,
   hasMore: Boolean
 })
 
-defineEmits(['sort', 'vote', 'load-more'])
+defineEmits(['sort', 'vote', 'delete', 'load-more'])
 
 const sortOptions = [
   { value: '-created_at', label: 'Newest' },

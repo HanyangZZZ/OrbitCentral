@@ -1,0 +1,95 @@
+/* ==========================================================================
+   Orbit Presentation — Apple Keynote "High-Key" Clean White Theme
+   Ultra-minimalist · Deep Navy on Pure White
+   ========================================================================== */
+
+:root {
+  /* Core Palette — Navy on White, non-negotiable */
+  --color-bg: #FFFFFF;
+  --color-surface: #FFFFFF;
+  --color-bg-alt: #F5F5F7;
+  --color-bg-warm: #F5F5F7;
+  --color-text: #0A1628;
+  --color-text-light: #1D1D1F;
+  --color-text-muted: #86868B;
+
+  /* Accents — restrained, Apple-style */
+  --color-primary: #0071E3;
+  --color-primary-hover: #0077ED;
+  --color-primary-light: rgba(0, 113, 227, 0.06);
+  --color-accent: #0071E3;
+  --color-accent-light: rgba(0, 113, 227, 0.06);
+  --color-gold: #BF5600;
+
+  /* Borders — barely visible */
+  --color-border: #E8E8ED;
+  --color-border-light: #D2D2D7;
+
+  /* Status */
+  --color-success: #34C759;
+  --color-danger: #FF3B30;
+  --color-warning: #FF9500;
+
+  /* Typography — SF Pro first */
+  --font-brand: 'SF Pro Display', -apple-system, BlinkMacSystemFont, 'Barlow', sans-serif;
+  --font-ui: 'SF Pro Text', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --font-mono: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+
+  /* Spacing — generous breathing room */
+  --section-px: 80px;
+  --section-py: 100px;
+  --content-max: 920px;
+
+  /* Radius — subtle */
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-md: 16px;
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* Shadows — minimal depth */
+  --shadow-sm: none;
+  --shadow-md: 0 2px 12px rgba(0, 0, 0, 0.04);
+  --shadow-lg: 0 4px 24px rgba(0, 0, 0, 0.06);
+
+  /* Layout */
+  --toc-width: 260px;
+}
+
+/* Reset */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html {
+  scroll-behavior: smooth;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-ui);
+  color: var(--color-text);
+  background: var(--color-bg);
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-brand);
+  line-height: 1.2;
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+a { color: var(--color-primary); text-decoration: none; }
+a:hover { color: var(--color-primary-hover); }
+
+img { max-width: 100%; height: auto; display: block; }
+
+code {
+  font-family: var(--font-mono);
+  background: var(--color-bg-alt);
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 0.88em;
+  color: var(--color-text);
+}
