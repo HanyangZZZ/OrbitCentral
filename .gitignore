@@ -18,13 +18,11 @@ __pycache__/
 backend/db.sqlite3
 backend/db.sqlite3-journal
 
-# Environment variables
-.env
-.env.*
-!.env.example
-backend/.env
-backend/.env.*
-!backend/.env.example
+# Environment variables — block all .env files everywhere, allow .env.example
+**/.env
+**/.env.*
+!**/.env.example
+
 
 # Database backups
 backups/
