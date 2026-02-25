@@ -36,7 +36,7 @@
  */
 
 // ── Configuration ────────────────────────────────────────────────────────────
-const SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LfjM3AsAAAAAHRcfPYW3kGl9XLcawICgGwSjQlE'
+const SITE_KEY = import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6Lda7XcsAAAAACWfEzuG3qKVSCMdPCwqNWA5_jaL'
 
 // ── Singleton script loader ──────────────────────────────────────────────────
 let scriptPromise = null
