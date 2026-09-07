@@ -196,6 +196,14 @@ For the next team picking up this project:
 6. **Database backup** — run `make backup` before making changes
 7. **Env vars** — see [.env.example](.env.example) for all required variables
 
+## License
+
+Licensed under the [GNU Affero General Public License v3.0](LICENSE) (AGPL-3.0).
+
+You're free to use, modify, and distribute this project — including commercially. If you run a modified version (including as a hosted service), you must make your modified source available under the same license.
+
+Copyright © 2025–2026 Abby & Hanyang
+
 ---
 
 *Built by Abby & Hanyang · 2025–2026*
