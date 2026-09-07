@@ -2,7 +2,7 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "FBLC Demo Frontend Dev Server",
+			"label": "OrbitCentral Demo Frontend Dev Server",
 			"type": "shell",
 			"command": "cd frontend-demo && npx vite --host 0.0.0.0",
 			"isBackground": true,

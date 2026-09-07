@@ -1,18 +1,18 @@
-# FBLC Deployment Guide
+# OrbitCentral Deployment Guide
 
-How to deploy FBLC to a cloud server. This guide uses Google Compute Engine (GCE), but the steps work on any Linux server with Docker installed.
+How to deploy OrbitCentral to a cloud server. This guide uses Google Compute Engine (GCE), but the steps work on any Linux server with Docker installed.
 
 ## Server Overview
 
 | Detail | Value |
 |--------|-------|
-| Instance name | `fblc` |
+| Instance name | `<your-instance-name>` |
 | Cloud provider | Google Compute Engine (GCE) |
-| Project ID | `consummate-sled-487120-u3` |
+| Project ID | `<your-gcp-project-id>` |
 | OS | Debian 12 |
 | Specs | 2 vCPU, 3.8 GB RAM |
-| Region | `northamerica-northeast2-b` |
-| External IP | `34.130.223.201` |
+| Region | `<your-region>` |
+| External IP | `<YOUR_SERVER_IP>` |
 | Domain | `orbitcentral.ca` |
 | User Frontend | `https://orbitcentral.ca` |
 | API Demo Frontend | `https://test.orbitcentral.ca` |
@@ -38,24 +38,24 @@ To reset: `htpasswd -cb nginx/.htpasswd admin NEW_PASSWORD`, then rebuild nginx 
 
 ```bash
 # Connect to the server
-gcloud compute ssh fblc --zone northamerica-northeast2-b
+gcloud compute ssh <your-instance-name> --zone <your-region>
 
 # Or with the full SSH host alias (from ~/.ssh/config after first gcloud ssh)
-ssh fblc.northamerica-northeast2-b.consummate-sled-487120-u3
+ssh <your-instance-name>.<your-region>.<your-gcp-project-id>
 
 # Project files live at
-cd ~/FBLC
+cd ~/OrbitCentral
 ```
 
 ### DNS Records
 
 | Type | Name | Value |
 |------|------|-------|
-| A | `orbitcentral.ca` | `34.130.223.201` |
-| A | `test.orbitcentral.ca` | `34.130.223.201` |
-| A | `business.orbitcentral.ca` | `34.130.223.201` |
-| A | `admin.orbitcentral.ca` | `34.130.223.201` |
-| A | `celery.orbitcentral.ca` | `34.130.223.201` |
+| A | `orbitcentral.ca` | `<YOUR_SERVER_IP>` |
+| A | `test.orbitcentral.ca` | `<YOUR_SERVER_IP>` |
+| A | `business.orbitcentral.ca` | `<YOUR_SERVER_IP>` |
+| A | `admin.orbitcentral.ca` | `<YOUR_SERVER_IP>` |
+| A | `celery.orbitcentral.ca` | `<YOUR_SERVER_IP>` |
 
 ## What Gets Deployed
 
@@ -108,21 +108,21 @@ sudo usermod -aG docker $USER
 # From your local machine
 gcloud compute scp --recurse \
   backend/ frontend-demo/ frontend-user/ postgres/ nginx/ docker-compose.yml .env.example Makefile \
-  fblc:~/FBLC/
+  <your-instance-name>:~/OrbitCentral/
 ```
 
 Or if using Git:
 ```bash
-gcloud compute ssh fblc
+gcloud compute ssh <your-instance-name>
 cd ~
-git clone <your-repo-url> FBLC
-cd FBLC
+git clone <your-repo-url> OrbitCentral
+cd OrbitCentral
 ```
 
 ### 2. Create the Environment File
 
 ```bash
-cd ~/FBLC
+cd ~/OrbitCentral
 cp .env.example .env
 nano .env
 ```
@@ -133,7 +133,7 @@ Fill in **all** the values. The important ones:
 |----------|------------|
 | `DJANGO_SECRET_KEY` | A long random string (generate one below) |
 | `PG_PASSWORD` | A strong database password |
-| `ALLOWED_HOSTS` | `orbitcentral.ca,business.orbitcentral.ca,34.130.223.201,localhost` |
+| `ALLOWED_HOSTS` | `orbitcentral.ca,business.orbitcentral.ca,<YOUR_SERVER_IP>,localhost` |
 | `CORS_ALLOWED_ORIGINS` | `https://orbitcentral.ca,https://business.orbitcentral.ca` |
 | `CSRF_TRUSTED_ORIGINS` | `https://orbitcentral.ca,https://business.orbitcentral.ca` |
 | `FRONTEND_BASE_URL` | `https://orbitcentral.ca` |
@@ -188,11 +188,11 @@ sudo docker compose exec django python manage.py generate_embeddings
 
 ```bash
 # Option A: Copy updated files
-gcloud compute scp --recurse backend/ fblc:~/FBLC/
+gcloud compute scp --recurse backend/ <your-instance-name>:~/OrbitCentral/
 
 # Option B: Pull from Git
-gcloud compute ssh fblc
-cd ~/FBLC && git pull
+gcloud compute ssh <your-instance-name>
+cd ~/OrbitCentral && git pull
 ```
 
 Then rebuild and restart:
@@ -242,20 +242,20 @@ sudo docker compose exec django python manage.py migrate
 sudo docker compose exec django python manage.py shell
 
 # PostgreSQL shell
-sudo docker compose exec postgres psql -U fblc -d fblc
+sudo docker compose exec postgres psql -U orbitcentral -d orbitcentral
 ```
 
 ### Backup the Database
 ```bash
 mkdir -p ~/backups
 sudo docker compose exec postgres \
-  pg_dump -U fblc fblc | gzip > ~/backups/fblc_$(date +%Y%m%d_%H%M%S).sql.gz
+  pg_dump -U orbitcentral orbitcentral | gzip > ~/backups/orbitcentral_$(date +%Y%m%d_%H%M%S).sql.gz
 ```
 
 ### Restore from Backup
 ```bash
-gunzip -c ~/backups/fblc_20250101.sql.gz | \
-  sudo docker compose exec -T postgres psql -U fblc -d fblc
+gunzip -c ~/backups/orbitcentral_20250101.sql.gz | \
+  sudo docker compose exec -T postgres psql -U orbitcentral -d orbitcentral
 ```
 
 ## GCE Firewall Rules
@@ -266,9 +266,9 @@ gcloud compute firewall-rules create allow-http \
   --allow tcp:80 --target-tags http-server
 gcloud compute firewall-rules create allow-https \
   --allow tcp:443 --target-tags https-server
-gcloud compute instances add-tags fblc \
+gcloud compute instances add-tags <your-instance-name> \
   --tags http-server,https-server \
-  --zone northamerica-northeast2-b
+  --zone <your-region>
 ```
 
 ## Setting Up HTTPS (SSL)
@@ -284,7 +284,7 @@ CERTBOT_EMAIL=your-email@example.com
 ```bash
 gcloud compute firewall-rules create allow-https \
   --allow tcp:443 --target-tags https-server
-gcloud compute instances add-tags fblc --tags https-server --zone northamerica-northeast2-b
+gcloud compute instances add-tags <your-instance-name> --tags https-server --zone <your-region>
 ```
 
 ### 3. Run SSL Init
@@ -322,7 +322,7 @@ Or add a cron job for automatic renewal:
 ```bash
 sudo crontab -e
 # Add this line (renew daily at 3am, only acts when certs are near expiry):
-0 3 * * * cd /home/$USER/FBLC && docker compose run --rm certbot renew && docker compose exec nginx nginx -s reload
+0 3 * * * cd /home/$USER/OrbitCentral && docker compose run --rm certbot renew && docker compose exec nginx nginx -s reload
 ```
 
 ### 7. Check Certificate Status

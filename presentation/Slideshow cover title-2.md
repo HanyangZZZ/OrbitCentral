@@ -1,8 +1,6 @@
 Slideshow cover title: 
 
-* Full name of competitors: Abby Zhao, Hanyang Zhuo  
-* School: Unionville High School  
-* City: Markham  
+* Competitors: Abby, Hanyang  
 * Name of Event: Coding & Programming  
 * Year: 2025-26
 

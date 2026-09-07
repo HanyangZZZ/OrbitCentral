@@ -830,10 +830,10 @@ rsync -avz -e ssh \
   backend/api/viewsets/reviews.py \
   backend/api/serializers/review.py \
   backend/api/models/business.py \
-  gcp-vm:~/FBLC/backend/api/
+  gcp-vm:~/OrbitCentral/backend/api/
 
 # Rebuild + restart django (includes signal changes)
-ssh gcp-vm "cd ~/FBLC && docker compose build django --quiet && docker compose up -d django"
+ssh gcp-vm "cd ~/OrbitCentral && docker compose build django --quiet && docker compose up -d django"
 ```
 
 ---

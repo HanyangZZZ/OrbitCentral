@@ -15,8 +15,7 @@ window.SECTIONS.push({
       </div>
       <div class="cover-footer">
         <div class="cover-footer-left">
-          <span>Abby Zhao &amp; Hanyang Zhuo</span>
-          <span>Unionville High School</span>
+          <span>Abby &amp; Hanyang</span>
         </div>
         <div class="cover-footer-right">
           <span>Coding &amp; Programming</span>

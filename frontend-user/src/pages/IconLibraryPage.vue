@@ -274,7 +274,7 @@ import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { formatSize, formatDate } from '@/utils/helpers'
 
 // ── Constants ────────────────────────────────────────────────────────────────
-const STORAGE_KEY = 'fblc-icon-library'
+const STORAGE_KEY = 'orbitcentral-icon-library'
 const FOLDER_EMOJIS = ['📁', '🎨', '🏷️', '⭐', '🖼️', '🔷', '📌', '🧩', '💎', '🌈']
 
 // ── State ────────────────────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-# FBLC Backend — Django REST API
+# OrbitCentral Backend — Django REST API
 
 The backend provides a REST API for local business discovery with AI-powered semantic search, auto-import from Google Places, and intelligent tagging.
 

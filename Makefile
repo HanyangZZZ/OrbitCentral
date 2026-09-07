@@ -1,5 +1,5 @@
 # =============================================================================
-# FBLC Makefile — Docker Compose commands for development & deployment
+# OrbitCentral Makefile — Docker Compose commands for development & deployment
 # =============================================================================
 # Services: postgres, redis, django, celery, nginx, adminer, flower
 # Run "make help" to see all commands.
@@ -69,17 +69,17 @@ embed-all: ## Re-generate embeddings for ALL businesses
 
 # ── Database ─────────────────────────────────────────────────────────────────
 db-shell: ## Open PostgreSQL shell
-	docker compose exec postgres psql -U $${PG_USER:-fblc} -d $${PG_DATABASE:-fblc}
+	docker compose exec postgres psql -U $${PG_USER:-orbitcentral} -d $${PG_DATABASE:-orbitcentral}
 
 db-reset: ## Reset database (DROP + CREATE schema, re-apply migrations, seed)
-	docker compose exec postgres psql -U $${PG_USER:-fblc} -d $${PG_DATABASE:-fblc} -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
+	docker compose exec postgres psql -U $${PG_USER:-orbitcentral} -d $${PG_DATABASE:-orbitcentral} -c "DROP SCHEMA public CASCADE; CREATE SCHEMA public; CREATE EXTENSION IF NOT EXISTS vector; CREATE EXTENSION IF NOT EXISTS postgis; CREATE EXTENSION IF NOT EXISTS pg_trgm;"
 	docker compose exec django python manage.py migrate
 	docker compose exec django python manage.py seed_categories
 	@echo "Database reset complete"
 
 backup: ## Backup database to ./backups/
 	@mkdir -p backups
-	docker compose exec postgres pg_dump -U $${PG_USER:-fblc} $${PG_DATABASE:-fblc} | gzip > backups/fblc_$$(date +%Y%m%d_%H%M%S).sql.gz
+	docker compose exec postgres pg_dump -U $${PG_USER:-orbitcentral} $${PG_DATABASE:-orbitcentral} | gzip > backups/orbitcentral_$$(date +%Y%m%d_%H%M%S).sql.gz
 	@echo "Backup saved to backups/"
 
 # ── Celery (background tasks) ────────────────────────────────────────────────

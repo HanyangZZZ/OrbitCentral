@@ -1,7 +1,7 @@
 <template>
 <div class="api-demo">
   <header>
-    <h1>FBLC API Reference</h1>
+    <h1>OrbitCentral API Reference</h1>
     <p class="subtitle">Interactive API demo — every endpoint is callable below. Frontend devs: use <code>src/api/client.js</code> for integration.</p>
     <nav class="toc">
       <a href="#stats">Stats</a>

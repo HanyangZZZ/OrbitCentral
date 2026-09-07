@@ -14,15 +14,17 @@ const API = {
   async _ensureAuth() {
     if (this._token) return this._token;
     if (this._loginPromise) return this._loginPromise;
+    const creds = window.ORBIT_DEMO_CREDENTIALS;
+    if (!creds) {
+      console.warn('[Orbit] No demo credentials configured (see js/config.example.js) — auth-only endpoints will be skipped.');
+      return null;
+    }
     this._loginPromise = (async () => {
       try {
         const res = await fetch(`${this.base}/auth/login/`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            username: 'hanyang.zhuo1219@gmail.com',
-            password: 'demo',
-          }),
+          body: JSON.stringify(creds),
         });
         if (!res.ok) throw new Error(`Login ${res.status}`);
         const data = await res.json();

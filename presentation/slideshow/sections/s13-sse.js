@@ -15,12 +15,6 @@ window.SECTIONS.push({
     <!-- ── SCALABILITY ──────────────────────────────────────────────────── -->
     <h3>Scalability</h3>
     <figure style="margin:0 0 1.5rem 0; text-align:center;">
-      <img src="images/gcloud-vm-monitoring.png" alt="Google Cloud VM Monitoring Dashboard"
-           style="width:100%; border-radius:10px; border:2px solid var(--border); box-shadow:0 4px 16px rgba(0,0,0,.25); cursor:pointer;"
-           onclick="this.classList.toggle('zoomed')" />
-      <figcaption style="margin-top:.5rem; font-size:.85rem; opacity:.7;">Google Cloud Compute Engine — live CPU, network, and disk monitoring for the production VM</figcaption>
-    </figure>
-    <figure style="margin:0 0 1.5rem 0; text-align:center;">
       <img src="images/flower-dashboard.png" alt="Flower Celery Task Monitor"
            style="width:100%; border-radius:10px; border:2px solid var(--border); box-shadow:0 4px 16px rgba(0,0,0,.25); cursor:pointer;"
            onclick="this.classList.toggle('zoomed')" />
@@ -76,12 +70,6 @@ window.SECTIONS.push({
 
     <!-- ── SECURITY ─────────────────────────────────────────────────────── -->
     <h3>Security</h3>
-    <figure style="margin:0 0 1.5rem 0; text-align:center;">
-      <img src="images/dns-records.png" alt="WHC DNS Zone Records"
-           style="width:100%; border-radius:10px; border:2px solid var(--border); box-shadow:0 4px 16px rgba(0,0,0,.25); cursor:pointer;"
-           onclick="this.classList.toggle('zoomed')" />
-      <figcaption style="margin-top:.5rem; font-size:.85rem; opacity:.7;">DNS zone — all subdomains (api, admin, business, etc.) pointed to the GCP VM with SSL via Let's Encrypt</figcaption>
-    </figure>
     <table class="data-table">
       <thead><tr><th>Measure</th><th>Where Applied</th><th>How</th></tr></thead>
       <tbody>

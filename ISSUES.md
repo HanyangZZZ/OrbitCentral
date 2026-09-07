@@ -1,4 +1,4 @@
-# FBLC — Known Issues & Remaining Work
+# OrbitCentral — Known Issues & Remaining Work
 
 Prioritised backlog of issues discovered during the security audit (Feb 19, 2026).  
 Items marked **FIXED** have already been resolved and deployed.

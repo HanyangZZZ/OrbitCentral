@@ -1,5 +1,5 @@
 # =============================================================================
-# FBLC Docker Compose
+# OrbitCentral Docker Compose
 # Services: postgres, redis, django, celery, nginx, adminer, flower
 # Usage: make up / make down / make logs
 # =============================================================================
@@ -10,11 +10,11 @@ services:
     build:
       context: ./postgres
       dockerfile: Dockerfile
-    container_name: fblc-postgres
+    container_name: orbitcentral-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${PG_DATABASE:-fblc}
-      POSTGRES_USER: ${PG_USER:-fblc}
+      POSTGRES_DB: ${PG_DATABASE:-orbitcentral}
+      POSTGRES_USER: ${PG_USER:-orbitcentral}
       POSTGRES_PASSWORD: ${PG_PASSWORD}
     volumes:
       - pg_data:/var/lib/postgresql/data
@@ -24,7 +24,7 @@ services:
     networks:
       - backend
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-fblc} -d ${PG_DATABASE:-fblc}"]
+      test: ["CMD-SHELL", "pg_isready -U ${PG_USER:-orbitcentral} -d ${PG_DATABASE:-orbitcentral}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -33,7 +33,7 @@ services:
   # ── Redis (Celery broker + result backend) ─────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: fblc-redis
+    container_name: orbitcentral-redis
     restart: unless-stopped
     command: redis-server --maxmemory 128mb --maxmemory-policy allkeys-lru
     volumes:
@@ -51,15 +51,15 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: fblc-django
+    container_name: orbitcentral-django
     restart: unless-stopped
     environment:
       DJANGO_SETTINGS_MODULE: server.settings.production
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       # DB — either set DATABASE_URL (for Supabase) or use PG_* vars (for local PG)
       DATABASE_URL: ${DATABASE_URL:-}
-      PG_DATABASE: ${PG_DATABASE:-fblc}
-      PG_USER: ${PG_USER:-fblc}
+      PG_DATABASE: ${PG_DATABASE:-orbitcentral}
+      PG_USER: ${PG_USER:-orbitcentral}
       PG_PASSWORD: ${PG_PASSWORD}
       PG_HOST: ${PG_HOST:-postgres}
       PG_PORT: ${PG_PORT:-5432}
@@ -105,15 +105,15 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: fblc-celery
+    container_name: orbitcentral-celery
     restart: unless-stopped
     command: celery -A server worker -l info --concurrency=2
     environment:
       DJANGO_SETTINGS_MODULE: server.settings.production
       DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
       DATABASE_URL: ${DATABASE_URL:-}
-      PG_DATABASE: ${PG_DATABASE:-fblc}
-      PG_USER: ${PG_USER:-fblc}
+      PG_DATABASE: ${PG_DATABASE:-orbitcentral}
+      PG_USER: ${PG_USER:-orbitcentral}
       PG_PASSWORD: ${PG_PASSWORD}
       PG_HOST: ${PG_HOST:-postgres}
       PG_PORT: ${PG_PORT:-5432}
@@ -152,7 +152,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: fblc-flower
+    container_name: orbitcentral-flower
     restart: unless-stopped
     command: celery -A server flower --port=5555 --basic-auth=${FLOWER_USER:-admin}:${FLOWER_PASSWORD:?FLOWER_PASSWORD must be set}
     environment:
@@ -161,8 +161,8 @@ services:
       CELERY_BROKER_URL: redis://redis:6379/0
       CELERY_RESULT_BACKEND: redis://redis:6379/1
       # Flower needs PG vars for the entrypoint DB wait, but doesn't use the DB
-      PG_DATABASE: ${PG_DATABASE:-fblc}
-      PG_USER: ${PG_USER:-fblc}
+      PG_DATABASE: ${PG_DATABASE:-orbitcentral}
+      PG_USER: ${PG_USER:-orbitcentral}
       PG_PASSWORD: ${PG_PASSWORD}
       PG_HOST: ${PG_HOST:-postgres}
       PG_PORT: ${PG_PORT:-5432}
@@ -189,7 +189,7 @@ services:
     build:
       context: .
       dockerfile: nginx/Dockerfile
-    container_name: fblc-nginx
+    container_name: orbitcentral-nginx
     restart: unless-stopped
     ports:
       - "${NGINX_PORT:-80}:80"
@@ -218,7 +218,7 @@ services:
   # ── Adminer (DB web portal) ─────────────────────────────────────────────────
   adminer:
     image: adminer:latest
-    container_name: fblc-adminer
+    container_name: orbitcentral-adminer
     restart: unless-stopped
     expose:
       - "8080"
@@ -234,7 +234,7 @@ services:
   #   make ssl-renew   — renew certs (runs as cron or manually)
   certbot:
     image: certbot/certbot:latest
-    container_name: fblc-certbot
+    container_name: orbitcentral-certbot
     volumes:
       - certbot_certs:/etc/letsencrypt
       - certbot_www:/var/www/certbot

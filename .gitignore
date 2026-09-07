@@ -46,6 +46,7 @@ nginx/.htpasswd
 presentation/slideshow/node_modules/
 presentation/slideshow/*.pdf
 presentation/slideshow/package-lock.json
+presentation/slideshow/js/config.js
 
 # iOS build
 frontend-user/ios/App/App/public/

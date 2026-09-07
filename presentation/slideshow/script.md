@@ -6,7 +6,7 @@
 
 ## Slide 1: Cover (~5 s)
 
-"Hi, we're Abby and Hanyang from Unionville High School in Markham. Today we're presenting **Orbit** — the best spots gravitate towards you."
+"Hi, we're Abby and Hanyang. Today we're presenting **Orbit** — the best spots gravitate towards you."
 
 ---
 

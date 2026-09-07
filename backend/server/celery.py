@@ -1,5 +1,5 @@
 """
-Celery application configuration for FBLC.
+Celery application configuration for OrbitCentral.
 
 This module creates the Celery app and configures it to:
   1. Read settings from Django's settings (CELERY_* namespace)

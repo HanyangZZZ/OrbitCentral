@@ -228,7 +228,7 @@ const coupons = reactive([
     claimed: false,
     used: false,
     showQR: false,
-    code: 'FBLC-RUSTIC-2026A',
+    code: 'ORBIT-RUSTIC-2026A',
     qrBlocks: generateQRBlocks(101),
   },
   {
@@ -247,7 +247,7 @@ const coupons = reactive([
     claimed: false,
     used: false,
     showQR: false,
-    code: 'FBLC-SAKURA-NOON5',
+    code: 'ORBIT-SAKURA-NOON5',
     qrBlocks: generateQRBlocks(202),
   },
   {
@@ -266,7 +266,7 @@ const coupons = reactive([
     claimed: false,
     used: false,
     showQR: false,
-    code: 'FBLC-BELLA-BOGO1',
+    code: 'ORBIT-BELLA-BOGO1',
     qrBlocks: generateQRBlocks(303),
   },
   {
@@ -285,7 +285,7 @@ const coupons = reactive([
     claimed: false,
     used: false,
     showQR: false,
-    code: 'FBLC-VITAL-HH20',
+    code: 'ORBIT-VITAL-HH20',
     qrBlocks: generateQRBlocks(404),
   },
   {
@@ -304,7 +304,7 @@ const coupons = reactive([
     claimed: true,
     used: false,
     showQR: false,
-    code: 'FBLC-GPHO-WELC3',
+    code: 'ORBIT-GPHO-WELC3',
     qrBlocks: generateQRBlocks(505),
   },
   {
@@ -323,7 +323,7 @@ const coupons = reactive([
     claimed: true,
     used: true,
     showQR: false,
-    code: 'FBLC-MAPLE-AM10',
+    code: 'ORBIT-MAPLE-AM10',
     qrBlocks: generateQRBlocks(606),
   },
 ])

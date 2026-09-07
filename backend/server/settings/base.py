@@ -78,9 +78,9 @@ else:
     DATABASES = {
         'default': {
             'ENGINE': 'django.contrib.gis.db.backends.postgis',
-            'NAME': os.environ.get('PG_DATABASE', 'fblc'),
-            'USER': os.environ.get('PG_USER', 'fblc'),
-            'PASSWORD': os.environ.get('PG_PASSWORD', 'fblc_password'),
+            'NAME': os.environ.get('PG_DATABASE', 'orbitcentral'),
+            'USER': os.environ.get('PG_USER', 'orbitcentral'),
+            'PASSWORD': os.environ.get('PG_PASSWORD', ''),
             'HOST': os.environ.get('PG_HOST', '127.0.0.1'),
             'PORT': os.environ.get('PG_PORT', '5432'),
         },

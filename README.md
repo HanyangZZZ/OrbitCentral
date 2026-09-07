@@ -1,10 +1,10 @@
-# FBLC — Local Business Discovery Platform
+# OrbitCentral — Local Business Discovery Platform
 
 A cross-platform app for discovering local businesses using AI-powered semantic search, built by **Abby & Hanyang**.
 
 ## What Is This?
 
-FBLC helps users find local businesses using AI-powered **"vibe search"**. Instead of matching keywords, it understands meaning — searching "cozy place for coffee" finds relevant cafés even if they don't use those exact words.
+OrbitCentral helps users find local businesses using AI-powered **"vibe search"**. Instead of matching keywords, it understands meaning — searching "cozy place for coffee" finds relevant cafés even if they don't use those exact words.
 
 **Key capabilities:**
 
@@ -49,7 +49,7 @@ Browser / iOS app
 ## Project Structure
 
 ```
-FBLC/
+OrbitCentral/
 ├── backend/                 Django REST API                → see backend/README.md
 ├── frontend-user/           User-facing Vue SPA            → see frontend-user/README.md
 ├── frontend-demo/           API testing demo app           → see frontend-demo/README.md
@@ -182,16 +182,16 @@ Key variables in `.env` (see `.env.example` for the full list):
 | **Brevo** | Transactional email (verification, password reset) | Celery email tasks |
 | **Let's Encrypt** | Free SSL certificates (auto-renewed via Certbot) | Nginx |
 
-All API keys and secrets are stored in the server's `~/FBLC/.env` file (never committed to git).
+All API keys and secrets are stored in the server's `~/OrbitCentral/.env` file (never committed to git).
 
 ## Handoff Checklist
 
 For the next team picking up this project:
 
-1. **Get access** to the GCP project (`consummate-sled-487120-u3`) and `gcloud compute ssh fblc`
+1. **Get access** to the GCP project and server — see [DEPLOYMENT.md](DEPLOYMENT.md#server-overview) for connection details
 2. **Read** [DEPLOYMENT.md](DEPLOYMENT.md) for server operations
 3. **Review** [SECURITY_IMPROVEMENTS.md](SECURITY_IMPROVEMENTS.md) for pending security items
-4. **Rotate secrets** — generate new `DJANGO_SECRET_KEY`, `PG_PASSWORD`, `FLOWER_PASSWORD` in `~/FBLC/.env` on the server
+4. **Rotate secrets** — generate new `DJANGO_SECRET_KEY`, `PG_PASSWORD`, `FLOWER_PASSWORD` in `~/OrbitCentral/.env` on the server
 5. **SSL cert** — check expiry with `make ssl-status`, renew with `make ssl-renew` if needed
 6. **Database backup** — run `make backup` before making changes
 7. **Env vars** — see [.env.example](.env.example) for all required variables

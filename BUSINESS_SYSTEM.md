@@ -663,7 +663,7 @@ backend/
 ```
 ┌──────────────────────────────────────────────────────────────────┐
 │                     GCP VM (e2-medium)                            │
-│                     34.130.223.201                                │
+│                     <YOUR_SERVER_IP>                                │
 │                     20GB disk                                     │
 │                                                                   │
 │  ┌─────────────────────────────────────────────────────────────┐ │
@@ -697,7 +697,7 @@ backend/
 # 1. Edit code locally (VS Code)
 # 2. Sync to server
 rsync -avz -e ssh --exclude='.git' --exclude='node_modules' \
-  /local/FBLC/ gcp-vm:~/FBLC/
+  /local/OrbitCentral/ gcp-vm:~/OrbitCentral/
 
 # 3. Build + restart (on server)
 docker compose build django nginx

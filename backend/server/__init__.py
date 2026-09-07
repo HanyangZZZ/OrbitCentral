@@ -1,5 +1,5 @@
 """
-FBLC Django project package.
+OrbitCentral Django project package.
 
 Import the Celery app here so it's loaded when Django starts.
 This ensures @shared_task decorators in api/tasks.py register properly.
